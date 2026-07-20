@@ -14,12 +14,7 @@ graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
 graf_c <- "#4db686"
 color <- "#80cf7f"
-# graf_dos <- c("#008080","#b9e576")
-# paleta <- c( "#008080", "#80cf7f", "#99a4da", "#ff8749", "#89eae9", "#eee8a9", "#95f7b1", "#a65696", "#6470a3", "#00c9cd", "#95b1b0")
-# paleta <- c(
-#   "#8dd3c7", "#ffffb3","#bebada","#fb8072", "#80b1d3",
-#   "#fdb462", "#b3de69", "#fccde5","#d9d9d9"
-# )
+
 paleta <- brewer.pal(12, "Set3")
 
 map_colors <- function(categories, pal) {
@@ -73,8 +68,8 @@ ui <- navbarPage(
                             selected = "abundancia"),
                hr(),
                h5("Filtros opcionales"),
-               uiOutput("filtro_terreno_ui"),
                uiOutput("filtro_clase_ui"),
+               uiOutput("filtro_protocolo_ui"),
                hr(),
                actionButton("run_graficos","Generar gráficos",
                             icon = icon("chart-bar"), class = "btn-success w-100")
@@ -91,23 +86,42 @@ ui <- navbarPage(
                  column(6, h5("Composición por orden"), plotOutput("graf_orden",  height = "320px")),
                  column(6, h5("Composición por clase"), plotOutput("graf_clase",  height = "320px"))
                ),
-             )
+             ),
            )
   ),
-  tabPanel("Mapas",
+  # tabPanel("Mapas",
+  #          sidebarLayout(
+  #            sidebarPanel(
+  #              h5("Opciones del mapa")
+  #            ),
+  #            mainPanel(
+  #              leaflet::leafletOutput("mapa", height = "700px")
+  #            )
+  #          )
+  # ),
+  tabPanel("Tránsito Aéreo",
            sidebarLayout(
              sidebarPanel(
-               h5("Opciones del mapa")
+               h5("Análisis de Vuelo"),
+               hr(),
+               uiOutput("estacion_ui"),
+               actionButton(
+                 "run_radar",
+                 "Genera gráficos de radar",
+                 icon = icon("play"),
+                 class = "btn-success w-100"
+               ),
+               downloadButton("download_all_radars", "Descargar Gráficos")
              ),
              mainPanel(
-               leaflet::leafletOutput("mapa", height = "700px")
+               plotOutput("graf_radar", height = "500px", width = "500px"),
+               br(),
              )
-           )
-  ),
-  tabPanel("Estructura comunitaria", h3("Sección en construcción")),
-  tabPanel("Curvas de acumulación de especies", h3("Sección en construcción")),
-  tabPanel("Análisis de similitud", h3("Sección en construcción")),
-  tabPanel("Descargar Darwin Core", h3("Sección en construcción"))
+           ))
+  # tabPanel("Estructura comunitaria", h3("Sección en construcción")),
+  # tabPanel("Curvas de acumulación de especies", h3("Sección en construcción")),
+  # tabPanel("Análisis de similitud", h3("Sección en construcción")),
+  # tabPanel("Descargar Darwin Core", h3("Sección en construcción"))
 )
 
 
@@ -156,12 +170,13 @@ server <- function(input, output, session) {
   rownames = FALSE)
   
   # filtros dinámicos
-  output$filtro_terreno_ui <- renderUI({
-    req(datos_reactivos())
-    terrenos <- sort(unique(datos_reactivos()$TERRENO))
-    selectInput("filtro_terreno","Terreno (todos)", choices = c("Todos", terrenos), selected = "Todos")
-  })
   
+  output$filtro_protocolo_ui <- renderUI({
+    req(datos_reactivos())
+    protocolos <- sort(unique(datos_reactivos()[["PROTOCOLO MUESTREO"]]))
+    selectInput("filtro_protocolo", "Protocolo de Muestreo", choices = c("Todos", protocolos), selected = "Todos")
+  })
+
   output$filtro_clase_ui <- renderUI({
     req(datos_reactivos())
     clases <- sort(unique(datos_reactivos()$CLASE))
@@ -171,10 +186,10 @@ server <- function(input, output, session) {
   # datos filtrados para gráficos 
   datos_graficos <- eventReactive(input$run_graficos, {
     df <- datos_reactivos()
-    if (!is.null(input$filtro_terreno) && input$filtro_terreno != "Todos")
-      df <- df[df$TERRENO == input$filtro_terreno, ]
     if (!is.null(input$filtro_clase) && input$filtro_clase != "Todas")
       df <- df[df$CLASE == input$filtro_clase, ]
+    if (!is.null(input$filtro_protocolo) && input$filtro_protocolo != "Todos")
+      df <- df[df[["PROTOCOLO MUESTREO"]] == input$filtro_protocolo, ]
     df
   })
   
@@ -293,6 +308,147 @@ server <- function(input, output, session) {
                   "",
                   input$tipo_grafico, input$metricas, paleta)
   })
+  
+  datos_aereo <- reactive({
+    req(datos_reactivos())
+    df <- datos_reactivos()
+    df <- df %>%
+      filter(
+        toupper(trimws(CLASE)) == "AVES",
+        !is.na(DIRECCIÓN),
+        trimws(DIRECCIÓN) != "",
+        toupper(trimws(DIRECCIÓN)) != "NINGUNO"
+      )
+    
+    df$dir_destino <- toupper(trimws(df$DIRECCIÓN))
+    
+    df
+  })
+  
+  output$estacion_ui <- renderUI({
+    req(datos_aereo())
+    estaciones <- sort(unique(datos_aereo()$ESTACION))
+    selectInput(
+      "estacion",
+      "Estación",
+      estaciones
+    )
+  })
+  
+  radar_data <- eventReactive(
+    input$run_radar, {
+      
+      datos_aereo() %>%
+        group_by(ESTACION, dir_destino) %>%
+        summarise(
+          abundancia = sum(CANTIDAD, na.rm = TRUE),
+          .groups = "drop"
+        )
+    }
+  )
+  
+  radar_maximo <- reactive({
+    req(radar_data())
+    
+    max(radar_data()$abundancia, na.rm = TRUE)
+  })
+  
+  observeEvent(input$run_radar, {
+    print(radar_data())
+  })
+  #***********************
+  # REVISAR 
+  #***********************
+  crear_radar <- reactive({
+    
+    req(input$estacion)
+    
+    df <- radar_data()
+    
+    # máximo global de todas las estaciones
+    max_global <- max(df$abundancia, na.rm = TRUE)
+    
+    if(max_global == 0) max_global <- 1
+    
+    df <- df %>%
+      filter(ESTACION == input$estacion)
+    
+    direcciones <- c(
+      "N","NO","O","SO", "S", "SE","E","NE"
+    )
+    
+    radar <- tibble(
+      dir_destino = direcciones
+    ) %>%
+      left_join(df, by="dir_destino")
+    
+    radar$abundancia[is.na(radar$abundancia)] <- 0
+    
+    valores <- radar$abundancia
+    
+    radar_final <- rbind(
+      rep(max_global,8),
+      rep(0,8),
+      valores
+    )
+    
+    radar_final <- as.data.frame(radar_final)
+    
+    colnames(radar_final) <- direcciones
+    
+    radar_final
+  })
+  
+  output$graf_radar <- renderPlot({
+    req(input$run_radar)
+    radar <- crear_radar()
+    fmsb::radarchart(
+      radar,
+      axistype=1,
+      pcol="#008080",
+      pfcol=scales::alpha("#80cf7f",0.4),
+      plwd=3,
+      cglcol="grey70",
+      axislabcol = "black",
+      caxislabels=seq(
+        0,
+        max(radar[1,]),
+        length.out=5
+      )
+    )
+    title(input$estacion)
+    
+  })
+  
+  output$download_all_radars <- downloadHandler(
+    filename=function(){
+      paste0(
+        input$estacion,
+        "_radar.png"
+      )
+      
+    },
+    
+    content=function(file){
+      png(file,
+          width=2200,
+          height=2200,
+          res=300)
+      
+      radar <- crear_radar()
+      fmsb::radarchart(
+        radar,
+        axistype=1,
+        pcol="#008080",
+        axislabcol = "black",
+        pfcol=scales::alpha("#80cf7f",0.4),
+        plwd=3
+      )
+      title(input$estacion)
+      dev.off()
+    }
+    
+  )
 }
 
 shinyApp(ui, server)
