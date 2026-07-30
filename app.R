@@ -1,5 +1,3 @@
-# setwd("C:/Users/cvara/Documents/py/registros_app/")
-
 library(shiny)
 library(shinydashboard)
 library(bslib)
