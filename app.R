@@ -1,4 +1,4 @@
-setwd("C:/Users/cvara/Documents/py/registros_app/")
+# setwd("C:/Users/cvara/Documents/py/registros_app/")
 
 library(shiny)
 library(shinydashboard)
@@ -450,6 +450,7 @@ server <- function(input, output, session) {
     
   )
 }
-
+# rsconnect::showLogs()
+rsconnect::applications()
 shinyApp(ui, server)
 # options(shiny.autoreload = TRUE)
