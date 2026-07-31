@@ -14,6 +14,10 @@ graf_c <- "#4db686"
 color <- "#80cf7f"
 
 paleta <- brewer.pal(12, "Set3")
+pal_set3 <- brewer.pal(12, "Set3")
+pal_set2 <- brewer.pal(8, "Set2")
+pal_pastel2 <- brewer.pal(8, "Pastel2")
+pal_accent <- brewer.pal(8, "Accent")
 
 map_colors <- function(categories, pal) {
   cats <- unique(categories)
@@ -409,15 +413,18 @@ server <- function(input, output, session) {
   
   # para graficar
   hacer_grafico <- function(df, var, titulo, tipo, metrica, paleta) {
+  
     res <- resumen_por(df, var, metrica)
     
     if (metrica == "ambas") {
+      
       res_long <- tidyr::pivot_longer(
         res,
         cols = c(abundancia, riqueza),
         names_to = "metrica",
         values_to = "valor"
       )
+      
       p <- ggplot(
         res_long,
         aes(x = categoria, y = valor, fill = metrica)
@@ -427,49 +434,119 @@ server <- function(input, output, session) {
           width = 0.7
         ) +
         scale_fill_manual(
-          values = c(abundancia = "#008080", riqueza = "#b9e576"),
-          labels = c(abundancia = "Abundancia", riqueza = "Riqueza")
+          values = c(
+            abundancia = "#209b87",
+            riqueza = "#b9e576"
+          )
         ) +
         labs(
           title = titulo,
           x = NULL,
-          y = "Valor",
-          fill = NULL
+          y = "Valor"
         ) +
         theme_minimal(base_size = 11) +
         theme(
           axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "bottom",
-          plot.title = element_text( face = "bold", size = 11)
-        )
+          axis.line = element_line(color="black"),
+          panel.grid.major.x = element_blank(),
+          panel.grid.major.y = element_line(color="grey85"),
+          plot.title = element_text(face="bold")
+        )      
       return(p)
-    }
-    
-    # etiqueta del eje y
-    y_lab <- if (metrica == "abundancia") "Nº individuos" else "Nº especies"
-    
-    if (tipo == "barras") {
-      res <- res |> arrange(desc(valor))
-      
-      p <- ggplot(res, aes(x = categoria, y = valor)) +
-        geom_col(fill = "#80cf7f", show.legend = FALSE, width = 0.7, alpha = 0.9) +
-        geom_text(aes(label = valor), vjust = -0.5, size = 3.5) +
-        labs(title = titulo, x = NULL, y = y_lab) +
+    }        
+    y_lab <- if (metrica == "abundancia") {
+      "Nº individuos"
+    } else {
+      "Nº especies"
+    }        
+    if (tipo == "barras") {      
+      res <- res |> arrange(desc(valor))      
+      p <- ggplot(
+        res,
+        aes(
+          x = categoria,
+          y = valor,
+          fill = categoria
+        )
+      ) +
+        geom_col(
+          width = 0.7,
+          alpha = 0.9,
+          show.legend = FALSE
+        ) +
+        geom_text(
+          aes(label = valor),
+          vjust = -0.5,
+          size = 3.5
+        ) +
+        scale_fill_manual(
+          values = map_colors(res$categoria, paleta)
+        ) +
+        labs(
+          title = titulo,
+          x = NULL,
+          y = y_lab
+        ) +
         theme_minimal(base_size = 11) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(face = "bold", size = 11))
-    } else { # torta
-      res$pct   <- round(res$valor / sum(res$valor) * 100, 1)
-      res$label <- paste0(res$categoria, "\n", res$pct, "%")
-      p <- ggplot(res, aes(x = "", y = valor, fill = categoria)) +
-        geom_col(width = 1, color = "white", linewidth = 0.4) +
-        coord_polar("y") +
-        scale_fill_manual(values = map_colors(res$categoria, paleta)) +
-        labs(title = titulo, fill = NULL) +
-        theme_void(base_size = 11) +
-        theme(plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
-              legend.position = "right")
-    }
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          
+          # eje X e Y visibles
+          axis.line = element_line(color="black"),
+          
+          # quitar líneas verticales
+          panel.grid.major.x = element_blank(),
+          
+          # mantener líneas horizontales
+          panel.grid.major.y = element_line(
+            color="grey80",
+            linewidth=0.4
+          ),
+          
+          plot.title = element_text(
+            face="bold",
+            size=11
+          )
+        )
+      
+    } else {
+        
+        res$pct <- round(
+          res$valor / sum(res$valor) * 100,
+          1
+        )       
+        p <- ggplot(
+          res,
+          aes(
+            x="",
+            y=valor,
+            fill=categoria
+          )
+        ) +
+          geom_col(
+            width=1,
+            color="white",
+            linewidth=0.4
+          ) +
+          coord_polar("y") +
+          scale_fill_manual(
+            values = map_colors(
+              res$categoria,
+              paleta
+            )
+          ) +
+          labs(
+            title=titulo,
+            fill=NULL
+          ) +
+          theme_void(base_size=11) +
+          theme(
+            plot.title = element_text(
+              face="bold",
+              hjust=0.5
+            )
+          )
+      }
     p
   }
 
@@ -494,28 +571,28 @@ server <- function(input, output, session) {
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "ESTACION",
                   "",
-                  input$tipo_grafico, input$metricas, paleta)
+                  input$tipo_grafico, input$metricas, pal_set2)
   })
   
   output$graf_metodologia <- renderPlot({
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "NOMBRE METODOLOGIA",
                   "",
-                  input$tipo_grafico, input$metricas, paleta)
+                  input$tipo_grafico, input$metricas, pal_pastel2)
   })
   
   output$graf_orden <- renderPlot({
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "ORDEN",
                   "",
-                  input$tipo_grafico, input$metricas, paleta)
+                  input$tipo_grafico, input$metricas, pal_accent)
   })
   
   output$graf_clase <- renderPlot({
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "CLASE",
                   "",
-                  input$tipo_grafico, input$metricas, paleta)
+                  input$tipo_grafico, input$metricas, pal_accent)
   })
   
   datos_aereo <- reactive({
