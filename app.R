@@ -12,12 +12,12 @@ graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
 graf_c <- "#4db686"
 color <- "#80cf7f"
-
-paleta <- brewer.pal(12, "Set3")
+# https://www.datanovia.com/blog/r-color-palettes
 pal_set3 <- brewer.pal(12, "Set3")
 pal_set2 <- brewer.pal(8, "Set2")
+pal_pastel1 <- brewer.pal(9, "Pastel1")
 pal_pastel2 <- brewer.pal(8, "Pastel2")
-pal_accent <- brewer.pal(8, "Accent")
+
 
 map_colors <- function(categories, pal) {
   cats <- unique(categories)
@@ -74,16 +74,18 @@ ui <- navbarPage(
                uiOutput("filtro_protocolo_ui"),
                hr(),
                actionButton("run_graficos","Generar gráficos",
-                            icon = icon("chart-bar"), class = "btn-success w-100")
+                            icon = icon("chart-bar"), class = "btn-success w-100"),
+               # downloadButton("download_taxonomicos", "Descargar gráficos", class = "btn-primary w-100")
+               downloadButton("download_estacion", "Descargar Estación",class = "btn-primary w-100")
              ),
              mainPanel(
-               # 1: por estación y por metodología
+               # por estación y por metodología
                fluidRow(
                  column(6, h5("Por estación"), plotOutput("graf_estacion",    height = "320px")),
                  column(6, h5("Por metodología"), plotOutput("graf_metodologia", height = "320px"))
                ),
                br(),
-               # 2: por orden y por clase
+               # por orden y por clase
                fluidRow(
                  column(6, h5("Composición por orden"), plotOutput("graf_orden",  height = "320px")),
                  column(6, h5("Composición por clase"), plotOutput("graf_clase",  height = "320px"))
@@ -147,13 +149,13 @@ ui <- navbarPage(
                  icon = icon("play"),
                  class = "btn-success w-100"
                ),
-               downloadButton("download_all_radars", "Descargar Gráficos")
+               #downloadButton("download_all_radars", "Descargar Gráficos")
              ),
              mainPanel(
                plotOutput("graf_radar", height = "500px", width = "500px"),
                br(),
              )
-           )),
+  )),
   tabPanel("Curva de acumulación de especies",
     sidebarLayout(
       sidebarPanel(
@@ -378,41 +380,39 @@ server <- function(input, output, session) {
   
   # para curva de acumulación de especies
   datos_acumulacion <- eventReactive(input$run_acumulacion, {
-
     df <- datos_reactivos()
-
     df <- df %>%
       filter(
         !is.na(FECHA),
         ESPECIE != ""
       )
-
     matriz <- xtabs(
       ~ FECHA + ESPECIE,
       data = df
     )
-
     matriz <- as.matrix(matriz)
-
     # quitar días sin registros
     matriz <- matriz[rowSums(matriz) > 0, ]
-
     # quitar especies sin registros
     matriz <- matriz[, colSums(matriz) > 0]
-
     if(nrow(matriz) < 2){
       stop("Se necesitan al menos dos días de muestreo")
     }
-
     vegan::specaccum(
       matriz,
       method = "random"
     )
-
   })
   
   # para graficar
   hacer_grafico <- function(df, var, titulo, tipo, metrica, paleta) {
+    nombre_leyenda <- case_when(
+      var == "ESTACION" ~ "Estación",
+      var == "NOMBRE METODOLOGIA" ~ "Metodología",
+      var == "ORDEN" ~ "Orden",
+      var == "CLASE" ~ "Clase",
+      TRUE ~ "Categoría"
+    )
   
     res <- resumen_por(df, var, metrica)
     
@@ -472,7 +472,6 @@ server <- function(input, output, session) {
         geom_col(
           width = 0.7,
           alpha = 0.9,
-          show.legend = FALSE
         ) +
         geom_text(
           aes(label = valor),
@@ -485,30 +484,27 @@ server <- function(input, output, session) {
         labs(
           title = titulo,
           x = NULL,
-          y = y_lab
+          y = y_lab,
+          fill = nombre_leyenda
         ) +
         theme_minimal(base_size = 11) +
         theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
-          
+          axis.text.x = element_text(angle = 45, hjust = 1),          
           # eje X e Y visibles
-          axis.line = element_line(color="black"),
-          
+          axis.line = element_line(color="black"),          
           # quitar líneas verticales
-          panel.grid.major.x = element_blank(),
-          
+          panel.grid.major.x = element_blank(),          
           # mantener líneas horizontales
           panel.grid.major.y = element_line(
             color="grey80",
             linewidth=0.4
-          ),
-          
+          ),          
           plot.title = element_text(
             face="bold",
             size=11
-          )
-        )
-      
+          ),
+          legend.position = "right"
+        )     
     } else {
         
         res$pct <- round(
@@ -552,9 +548,7 @@ server <- function(input, output, session) {
 
   # output curva de acumulación de especies
   output$curva_acumulacion <- renderPlot({
-
     curva <- datos_acumulacion()
-
     plot(
       curva,
       ci.type = "line",
@@ -567,11 +561,15 @@ server <- function(input, output, session) {
 
   })
 
-  output$graf_estacion <- renderPlot({
+  grafico_estacion <- reactive({
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "ESTACION",
                   "",
                   input$tipo_grafico, input$metricas, pal_set2)
+  })
+
+  output$graf_estacion <- output$graf_estacion <- renderPlot({
+    grafico_estacion()
   })
   
   output$graf_metodologia <- renderPlot({
@@ -585,14 +583,14 @@ server <- function(input, output, session) {
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "ORDEN",
                   "",
-                  input$tipo_grafico, input$metricas, pal_accent)
+                  input$tipo_grafico, input$metricas, pal_pastel1)
   })
   
   output$graf_clase <- renderPlot({
     req(datos_graficos())
     hacer_grafico(datos_graficos(), "CLASE",
                   "",
-                  input$tipo_grafico, input$metricas, pal_accent)
+                  input$tipo_grafico, input$metricas, pal_pastel1)
   })
   
   datos_aereo <- reactive({
@@ -638,10 +636,7 @@ server <- function(input, output, session) {
     
     max(radar_data()$abundancia, na.rm = TRUE)
   })
-  
-  # observeEvent(input$run_radar, {
-  #   print(radar_data())
-  # })
+
   #***********************
   # REVISAR 
   #***********************
@@ -706,35 +701,53 @@ server <- function(input, output, session) {
     
   })
   
-  output$download_all_radars <- downloadHandler(
-    filename=function(){
-      paste0(
-        input$estacion,
-        "_radar.png"
-      )
-      
+  
+ output$download_estacion <- downloadHandler(
+    filename = function(){
+      "Grafico_Estacion.png"
     },
-    
-    content=function(file){
-      png(file,
-          width=2200,
-          height=2200,
-          res=300)
-      
-      radar <- crear_radar()
-      fmsb::radarchart(
-        radar,
-        axistype=1,
-        pcol="#008080",
-        axislabcol = "black",
-        pfcol=scales::alpha("#80cf7f",0.4),
-        plwd=3
+    content = function(file){
+      ggsave(
+        filename = file,
+        plot = grafico_estacion(),
+        device = "png",
+        width = 8,
+        height = 6,
+        units = "in",
+        dpi = 300,
+        bg = "white"
       )
-      title(input$estacion)
-      dev.off()
     }
-    
   )
+  # output$download_all_radars <- downloadHandler(
+  #   filename=function(){
+  #     paste0(
+  #       input$estacion,
+  #       "_radar.png"
+  #     )
+  #     
+  #   },
+  #   
+  #   content=function(file){
+  #     png(file,
+  #         width=2200,
+  #         height=2200,
+  #         res=300)
+  #     
+  #     radar <- crear_radar()
+  #     fmsb::radarchart(
+  #       radar,
+  #       axistype=1,
+  #       pcol="#008080",
+  #       axislabcol = "black",
+  #       pfcol=scales::alpha("#80cf7f",0.4),
+  #       plwd=3
+  #     )
+  #     title(input$estacion)
+  #     dev.off()
+  #   }
+  #   
+  # )
 }
 
 shinyApp(ui, server)
