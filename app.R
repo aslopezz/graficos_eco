@@ -93,12 +93,13 @@ ui <- navbarPage(
       sidebarPanel(
         h5("Configuración"),
         selectInput(
-          "nivel_diversidad",
-          "Calcular diversidad por:",
-          choices = c(
-            "Todas las muestras" = "total",
-            "Estación" = "ESTACION",
-            "Metodología" = "NOMBRE METODOLOGIA"
+          "nivel_riqueza",
+          "Agrupar por:",
+          choices=c(
+            "Clase"="CLASE",
+            "Orden"="ORDEN",
+            "Familia"="FAMILIA",
+            "Especie"="ESPECIE"
           )
         ),
         actionButton(
@@ -241,25 +242,44 @@ server <- function(input, output, session) {
     )
   }
 
-  resultado_diversidad <- eventReactive(
+  tabla_riqueza_abundancia <- function(df, agrupador){
+    df %>%
+      filter(
+        !is.na(.data[[agrupador]]),
+        .data[[agrupador]] != ""
+      ) %>%
+      group_by(
+        .data[[agrupador]]
+      ) %>%
+      summarise(
+        riqueza = n_distinct(ESPECIE),
+        abundancia = sum(CANTIDAD, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      rename(
+        grupo = 1
+      ) %>%
+      arrange(desc(abundancia))
+
+  }
+
+  # calcula los índices para todo el conjunto de datos
+  resultado_indices <- eventReactive(
     input$run_diversidad,
     {
       df <- datos_reactivos()
-      req(df)
-      if(input$nivel_diversidad != "total"){
-        df <- df %>%
-          group_by(
-            across(all_of(input$nivel_diversidad))
-          ) %>%
-          group_split()
-      } else {
-        df <- list(df)
-      }
-      resultado <- lapply(
+      calcular_indices(df)
+    }
+  )
+
+  resultado_tabla <- eventReactive(
+    input$run_diversidad,
+    {
+      df <- datos_reactivos()
+      tabla_riqueza_abundancia(
         df,
-        calcular_indices
+        input$nivel_riqueza
       )
-      resultado
     }
   )
   
@@ -330,15 +350,9 @@ server <- function(input, output, session) {
   }
   
   output$tabla_indices <- renderDT({
-    req(resultado_diversidad())
-    datos <- resultado_diversidad()
-    tabla <- bind_rows(
-      lapply(datos, function(x){
-        x$indices
-      })
-    )
+    req(resultado_indices())
     datatable(
-      tabla,
+      resultado_indices()$indices,
       options=list(
         pageLength=10,
         scrollX=TRUE
@@ -347,15 +361,9 @@ server <- function(input, output, session) {
   })
 
   output$tabla_abundancia <- renderDT({
-    req(resultado_diversidad())
-    datos <- resultado_diversidad()
-    tabla <- bind_rows(
-      lapply(datos, function(x){
-        x$abundancia
-      })
-    )
+    req(resultado_tabla())
     datatable(
-      tabla,
+      resultado_tabla(),
       options=list(
         pageLength=20,
         scrollX=TRUE
@@ -366,27 +374,37 @@ server <- function(input, output, session) {
   
   # para curva de acumulación de especies
   datos_acumulacion <- eventReactive(input$run_acumulacion, {
-    df <- datos_reactivos()  
+
+    df <- datos_reactivos()
+
     df <- df %>%
       filter(
         !is.na(FECHA),
         ESPECIE != ""
-      ) %>%
-      arrange(FECHA)    
-    dias <- sort(unique(df$FECHA))    
-    especies <- character()
-    riqueza <- numeric(length(dias))    
-    for(i in seq_along(dias)){      
-      especies <- union(
-        especies,
-        df$ESPECIE[df$FECHA == dias[i]]
-      )      
-      riqueza[i] <- length(especies)      
-    }    
-    data.frame(
-      FECHA = dias,
-      RIQUEZA = riqueza
-    )    
+      )
+
+    matriz <- xtabs(
+      ~ FECHA + ESPECIE,
+      data = df
+    )
+
+    matriz <- as.matrix(matriz)
+
+    # quitar días sin registros
+    matriz <- matriz[rowSums(matriz) > 0, ]
+
+    # quitar especies sin registros
+    matriz <- matriz[, colSums(matriz) > 0]
+
+    if(nrow(matriz) < 2){
+      stop("Se necesitan al menos dos días de muestreo")
+    }
+
+    vegan::specaccum(
+      matriz,
+      method = "random"
+    )
+
   })
   
   # para graficar
@@ -457,18 +475,19 @@ server <- function(input, output, session) {
 
   # output curva de acumulación de especies
   output$curva_acumulacion <- renderPlot({
+
     curva <- datos_acumulacion()
+
     plot(
-      curva$FECHA,
-      curva$RIQUEZA,
-      type = "b",
-      pch = 16,
-      lwd = 3,
+      curva,
+      ci.type = "line",
       col = "#008080",
-      xlab = "Fecha",
+      lwd = 3,
+      xlab = "Días de muestreo",
       ylab = "Especies acumuladas",
       main = "Curva de acumulación de especies"
     )
+
   })
 
   output$graf_estacion <- renderPlot({
