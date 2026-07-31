@@ -39,7 +39,7 @@ ui <- navbarPage(
                          placeholder = "Ningún archivo seleccionado"),
                hr(),
                h4("Parámetros Analíticos"),
-               numericInput("n_perm", "Permutaciones (acumulación", value=500, min=100, max=1000, step=1),
+               # numericInput("n_perm", "Permutaciones (acumulación", value=500, min=100, max=1000, step=1),
                numericInput("k_grupos", "Grupos (k) para dendogramas y SIMPER", value=5, min=2, max=10, step=1),
                # input$n_perm
                # input$k_grupos
@@ -86,6 +86,39 @@ ui <- navbarPage(
                ),
              ),
            )
+    ),
+    tabPanel(
+    "Diversidad y abundancia",
+    sidebarLayout(
+      sidebarPanel(
+        h5("Configuración"),
+        selectInput(
+          "nivel_diversidad",
+          "Calcular diversidad por:",
+          choices = c(
+            "Todas las muestras" = "total",
+            "Estación" = "ESTACION",
+            "Metodología" = "NOMBRE METODOLOGIA"
+          )
+        ),
+        actionButton(
+          "run_diversidad",
+          "Calcular índices",
+          icon = icon("play"),
+          class = "btn-primary w-100"
+        )
+      ),
+      
+      mainPanel(
+        h4("Índices de diversidad"),
+        DTOutput("tabla_indices"),
+        
+        br(),
+        
+        h4("Abundancia por especie"),
+        DTOutput("tabla_abundancia")
+      )
+    )
   ),
   # tabPanel("Mapas",
   #          sidebarLayout(
@@ -115,13 +148,32 @@ ui <- navbarPage(
                plotOutput("graf_radar", height = "500px", width = "500px"),
                br(),
              )
-           ))
+           )),
+  tabPanel("Curva de acumulación de especies",
+    sidebarLayout(
+      sidebarPanel(
+        h5("Configuración"),
+        numericInput(
+          "n_perm_acum",
+          "Número de permutaciones", value = 500, min = 100, max = 5000, step = 100
+        ),
+        uiOutput("estacion_acum_ui"),
+        actionButton(
+          "run_acumulacion",
+          "Generar curva",
+          icon = icon("play"),
+          class = "btn-primary w-100"
+        )
+      ),
+      mainPanel(
+        plotOutput("curva_acumulacion", height = "500px")
+      )
+    )
+  )
   # tabPanel("Estructura comunitaria", h3("Sección en construcción")),
-  # tabPanel("Curvas de acumulación de especies", h3("Sección en construcción")),
   # tabPanel("Análisis de similitud", h3("Sección en construcción")),
   # tabPanel("Descargar Darwin Core", h3("Sección en construcción"))
 )
-
 
 server <- function(input, output, session) {
   
@@ -144,8 +196,72 @@ server <- function(input, output, session) {
     # construir nombre científico
     df$ESPECIE <- paste(trimws(df$GENERO), trimws(df[["EPITETO ESPECIFICO"]]))
     # print(names(df))
+    df$FECHA <- as.Date(df$FECHA, format = "%d-%m-%Y")
+    df$MUESTRA <- paste(
+      df$FECHA,
+      df$ESTACION,
+      df$`NOMBRE METODOLOGIA`,
+      sep = "_"
+    )
     df
   })
+
+  # indices
+  calcular_indices <- function(df){
+    abundancias <- df %>%
+      group_by(ESPECIE) %>%
+      summarise(
+        abundancia = sum(CANTIDAD, na.rm = TRUE),
+        .groups = "drop"
+      )
+    abundancias <- abundancias %>%
+      filter(abundancia > 0)
+    S <- nrow(abundancias)
+    total <- sum(abundancias$abundancia)
+    abundancias <- abundancias %>%
+      mutate(
+        abundancia_relativa = abundancia / total * 100
+      )
+    pi <- abundancias$abundancia_relativa / 100
+    # Shannon
+    H <- -sum(pi * log(pi))
+    Simpson <- 1 - sum(pi^2)
+    Pielou <- H / log(S)
+    indices <- data.frame(
+      Riqueza = S,
+      Abundancia_total = total,
+      Shannon = round(H,4),
+      Simpson = round(Simpson,4),
+      Pielou = round(Pielou,4)
+    )
+    list(
+      indices = indices,
+      abundancia = abundancias %>%
+        arrange(desc(abundancia))
+    )
+  }
+
+  resultado_diversidad <- eventReactive(
+    input$run_diversidad,
+    {
+      df <- datos_reactivos()
+      req(df)
+      if(input$nivel_diversidad != "total"){
+        df <- df %>%
+          group_by(
+            across(all_of(input$nivel_diversidad))
+          ) %>%
+          group_split()
+      } else {
+        df <- list(df)
+      }
+      resultado <- lapply(
+        df,
+        calcular_indices
+      )
+      resultado
+    }
+  )
   
   # resumen de carga 
   output$resumen_carga <- renderUI({
@@ -160,7 +276,7 @@ server <- function(input, output, session) {
                      sum(df$CANTIDAD, na.rm = TRUE))
     )
   })
-  
+
   # tabla de datos 
   output$tabla_resultados <- renderDT({
     datos_reactivos()
@@ -212,6 +328,66 @@ server <- function(input, output, session) {
     }
     res
   }
+  
+  output$tabla_indices <- renderDT({
+    req(resultado_diversidad())
+    datos <- resultado_diversidad()
+    tabla <- bind_rows(
+      lapply(datos, function(x){
+        x$indices
+      })
+    )
+    datatable(
+      tabla,
+      options=list(
+        pageLength=10,
+        scrollX=TRUE
+      )
+    )
+  })
+
+  output$tabla_abundancia <- renderDT({
+    req(resultado_diversidad())
+    datos <- resultado_diversidad()
+    tabla <- bind_rows(
+      lapply(datos, function(x){
+        x$abundancia
+      })
+    )
+    datatable(
+      tabla,
+      options=list(
+        pageLength=20,
+        scrollX=TRUE
+      ),
+      rownames=FALSE
+    )
+  })
+  
+  # para curva de acumulación de especies
+  datos_acumulacion <- eventReactive(input$run_acumulacion, {
+    df <- datos_reactivos()  
+    df <- df %>%
+      filter(
+        !is.na(FECHA),
+        ESPECIE != ""
+      ) %>%
+      arrange(FECHA)    
+    dias <- sort(unique(df$FECHA))    
+    especies <- character()
+    riqueza <- numeric(length(dias))    
+    for(i in seq_along(dias)){      
+      especies <- union(
+        especies,
+        df$ESPECIE[df$FECHA == dias[i]]
+      )      
+      riqueza[i] <- length(especies)      
+    }    
+    data.frame(
+      FECHA = dias,
+      RIQUEZA = riqueza
+    )    
+  })
   
   # para graficar
   hacer_grafico <- function(df, var, titulo, tipo, metrica, paleta) {
@@ -278,6 +454,22 @@ server <- function(input, output, session) {
     }
     p
   }
+
+  # output curva de acumulación de especies
+  output$curva_acumulacion <- renderPlot({
+    curva <- datos_acumulacion()
+    plot(
+      curva$FECHA,
+      curva$RIQUEZA,
+      type = "b",
+      pch = 16,
+      lwd = 3,
+      col = "#008080",
+      xlab = "Fecha",
+      ylab = "Especies acumuladas",
+      main = "Curva de acumulación de especies"
+    )
+  })
 
   output$graf_estacion <- renderPlot({
     req(datos_graficos())
@@ -351,9 +543,9 @@ server <- function(input, output, session) {
     max(radar_data()$abundancia, na.rm = TRUE)
   })
   
-  observeEvent(input$run_radar, {
-    print(radar_data())
-  })
+  # observeEvent(input$run_radar, {
+  #   print(radar_data())
+  # })
   #***********************
   # REVISAR 
   #***********************
@@ -448,7 +640,6 @@ server <- function(input, output, session) {
     
   )
 }
-# rsconnect::showLogs()
-rsconnect::applications()
+
 shinyApp(ui, server)
 # options(shiny.autoreload = TRUE)
