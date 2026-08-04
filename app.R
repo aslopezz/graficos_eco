@@ -165,12 +165,12 @@ ui <- navbarPage(
           "Número de permutaciones", value = 500, min = 100, max = 5000, step = 100
         ),
         uiOutput("estacion_acum_ui"),
-        actionButton(
-          "run_acumulacion",
-          "Generar curva",
-          icon = icon("play"),
-          class = "btn-primary w-100"
-        )
+        # actionButton(
+        #   "run_acumulacion",
+        #   "Generar curva",
+        #   icon = icon("play"),
+        #   class = "btn-primary w-100"
+        # )
       ),
       mainPanel(
         plotOutput("curva_acumulacion", height = "500px")
@@ -230,16 +230,22 @@ server <- function(input, output, session) {
         abundancia_relativa = abundancia / total * 100
       )
     pi <- abundancias$abundancia_relativa / 100
-    # Shannon
+
+    # Shannon (H')
     H <- -sum(pi * log(pi))
-    Simpson <- 1 - sum(pi^2)
-    Pielou <- H / log(S)
+    # diversidad máxima (H' máx)
+    Hmax <- log(S)
+    pielou <- ifelse(S > 1, H / Hmax, NA)
+    dominancia_Simpson <- sum(pi^2)
+    
     indices <- data.frame(
       Riqueza = S,
-      Abundancia_total = total,
-      Shannon = round(H,4),
-      Simpson = round(Simpson,4),
-      Pielou = round(Pielou,4)
+      `Abundancia total` = total,
+      `Shannon (H')` = round(H, 4),
+      `Diversidad máxima (H' máx)` = round(Hmax, 4),
+      `Pielou (J')` = round(pielou, 4),
+      `Simpson (D)` = round(dominancia_Simpson, 4),
+      check.names = FALSE
     )
     list(
       indices = indices,
@@ -405,16 +411,16 @@ server <- function(input, output, session) {
   })
   
   # para graficar
-  hacer_grafico <- function(df, var, titulo, tipo, metrica, paleta) {
+  hacer_grafico <- function(df, col, titulo, tipo, metrica, paleta) {
     nombre_leyenda <- case_when(
-      var == "ESTACION" ~ "Estación",
-      var == "NOMBRE METODOLOGIA" ~ "Metodología",
-      var == "ORDEN" ~ "Orden",
-      var == "CLASE" ~ "Clase",
+      col == "ESTACION" ~ "Estación",
+      col == "NOMBRE METODOLOGIA" ~ "Metodología",
+      col == "ORDEN" ~ "Orden",
+      col == "CLASE" ~ "Clase",
       TRUE ~ "Categoría"
     )
   
-    res <- resumen_por(df, var, metrica)
+    res <- resumen_por(df, col, metrica)
     
     if (metrica == "ambas") {
       
