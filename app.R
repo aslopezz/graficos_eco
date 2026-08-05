@@ -454,25 +454,36 @@ server <- function(input, output, session) {
   
   # para curva de acumulación de especies
   datos_acumulacion <- eventReactive(input$run_acumulacion, {
-    df <- datos_reactivos()
-    df$MUESTRA <- paste(
-      df$FECHA,
-      df$ESTACION,
-      df$`NOMBRE METODOLOGIA`,
-      sep = "_"
-    )
+    req(datos_reactivos())
     
-    matriz <- xtabs(
-      CANTIDAD ~ MUESTRA + ESPECIE,
-      data = df
-    )
-    
-    matriz <- as.matrix(matriz)
-    
-    calcular_curva_acumulacion(
-      matriz = matriz,
-      estimador = input$estimador,
-      nperm = input$n_perm_acum
+    withProgress(
+      message = "Calculando curva...",
+      value = 2,
+      {
+        df <- datos_reactivos()
+        df$MUESTRA <- paste(
+          df$FECHA,
+          df$ESTACION,
+          df$`NOMBRE METODOLOGIA`,
+          sep = "_"
+        )
+        
+        matriz <- xtabs(
+          CANTIDAD ~ MUESTRA + ESPECIE,
+          data = df
+        )
+        
+        matriz <- as.matrix(matriz)
+        
+        curva <- calcular_curva_acumulacion(
+          matriz = matriz,
+          estimador = input$estimador,
+          nperm = input$n_perm_acum
+        )
+        
+        incProgress(1, detail="Finalizado")
+        curva
+      }
     )
   })
   
@@ -521,7 +532,7 @@ server <- function(input, output, session) {
           axis.text.x = element_text(angle = 45, hjust = 1),
           axis.line = element_line(color="black"),
           panel.grid.major.x = element_blank(),
-          panel.grid.major.y = element_line(color="grey85"),
+          panel.grid.major.y = element_line(color="grey80"),
           plot.title = element_text(face="bold")
         )      
       return(p)
@@ -628,10 +639,19 @@ server <- function(input, output, session) {
       geom_ribbon(
         aes(
           ymin = observado - observado_sd,
-          ymax = observado + observado_sd
+          ymax = observado + observado_sd,
+          fill = "± 1 DE"
         ),
-        fill = "grey80",
+        # fill = "grey80",
         alpha = .35
+      ) +
+      
+      scale_x_continuous(
+        expand = c(0,0)
+      ) +
+      
+      scale_y_continuous(
+        expand = expansion(mult = c(0, 0.05))
       ) +
       
       geom_line(
@@ -646,9 +666,10 @@ server <- function(input, output, session) {
         aes(
           y = estimado,
           colour = "Estimador",
-          linetype = "Estimador"
+          # linetype = "Estimador"
         ),
-        linewidth = 1.2
+        linewidth = 1.2,
+        linetype = "dashed"
       ) +
       
       geom_line(
@@ -665,18 +686,27 @@ server <- function(input, output, session) {
         Asíntota = "#c9a000"
       )) +
       
-      scale_linetype_manual(values = c(
-        Estimador = "dashed"
-      )) +
+      scale_fill_manual(
+        values = c("± 1 DE" = "grey80"),
+        name = NULL
+      ) +
       
       labs(
         x = "Esfuerzo de muestreo",
         y = "Riqueza de especies",
-        colour = ""
+        # colour = "",
+        color = NULL,
+        fill = NULL
       ) +
       
-      theme_classic()
-
+      theme_classic() +
+      
+      theme (
+        panel.grid.major.y = element_line(
+          color = "grey80",
+          linewidth = 0.4
+        )
+      )
   })
 
   grafico_estacion <- reactive({
@@ -807,7 +837,7 @@ server <- function(input, output, session) {
       pcol="#008080",
       pfcol=scales::alpha("#80cf7f",0.4),
       plwd=3,
-      cglcol="grey70",
+      cglcol="grey80",
       axislabcol = "black",
       caxislabels=seq(
         0,
