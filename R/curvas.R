@@ -22,10 +22,22 @@ calcular_curva_acumulacion <- function(matriz,
       valor <- switch(
         estimador,
         "Chao 1" = {
-          vegan::estimateR(colSums(sub))[2]
+          # vegan::estimateR(colSums(sub))[2]
+          abund <- colSums(sub)
+          if (sum(abund > 0) < 2) {
+            NA
+          } else {
+            vegan::estimateR(abund)[2]
+          }
         },
         "ACE" = {
-          vegan::estimateR(colSums(sub))[4]
+          # vegan::estimateR(colSums(sub))[4]
+          abund <- colSums(sub)
+          if (sum(abund > 0) < 2) {
+            NA
+          } else {
+            vegan::estimateR(abund)[4]
+          }
         },
         "Chao 2" = {
           sub.pa <- sub

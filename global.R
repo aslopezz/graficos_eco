@@ -20,7 +20,7 @@ pal_pastel1 <- brewer.pal(9, "Pastel1")
 pal_pastel2 <- brewer.pal(8, "Pastel2")
 
 source("R/curvas.R") # funcion curca de acumulación
-source("R/analysis.R") 
+source("R/datos.R") 
 source("R/plots.R")
 source("R/helpers.R")
-source("R/colors.R")
+source("R/diversidad.R")

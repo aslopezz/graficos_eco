@@ -5,97 +5,16 @@ server <- function(input, output, session) {
     df <- read.csv(input$archivo_csv$datapath,
                    sep = ";", stringsAsFactors = FALSE,
                    encoding = "UTF-8", check.names = FALSE)
-    # limpiar espacios en nombres de columna
-    names(df) <- trimws(names(df))
-    # nombres vacíos
-    names(df)[names(df) == ""] <- paste0(
-      "COL_",
-      which(names(df) == "")
-    )
-    # forzar numérico en CANTIDAD
-    df$CANTIDAD <- suppressWarnings(as.numeric(df$CANTIDAD))
-    df$CANTIDAD[is.na(df$CANTIDAD)] <- 0
-    # construir nombre científico
-    df$ESPECIE <- paste(trimws(df$GENERO), trimws(df[["EPITETO ESPECIFICO"]]))
-    # print(names(df))
-    df$FECHA <- as.Date(df$FECHA, format = "%d-%m-%Y")
-    df$MUESTRA <- paste(
-      df$FECHA,
-      df$ESTACION,
-      df$`NOMBRE METODOLOGIA`,
-      sep = "_"
-    )
-    df
+    # datos.R
+    procesar_datos_entrada(df)
   })
-
-  # indices
-  calcular_indices <- function(df){
-    abundancias <- df %>%
-      group_by(ESPECIE) %>%
-      summarise(
-        abundancia = sum(CANTIDAD, na.rm = TRUE),
-        .groups = "drop"
-      )
-    abundancias <- abundancias %>%
-      filter(abundancia > 0)
-    S <- nrow(abundancias)
-    total <- sum(abundancias$abundancia)
-    abundancias <- abundancias %>%
-      mutate(
-        abundancia_relativa = abundancia / total * 100
-      )
-    pi <- abundancias$abundancia_relativa / 100
-
-    # Shannon (H')
-    H <- -sum(pi * log(pi))
-    # diversidad máxima (H' máx)
-    Hmax <- log(S)
-    pielou <- ifelse(S > 1, H / Hmax, NA)
-    dominancia_Simpson <- sum(pi^2)
-    
-    indices <- data.frame(
-      Riqueza = S,
-      `Abundancia total` = total,
-      `Shannon (H')` = round(H, 4),
-      `Diversidad máxima (H' máx)` = round(Hmax, 4),
-      `Pielou (J')` = round(pielou, 4),
-      `Simpson (D)` = round(dominancia_Simpson, 4),
-      check.names = FALSE
-    )
-    list(
-      indices = indices,
-      abundancia = abundancias %>%
-        arrange(desc(abundancia))
-    )
-  }
-
-  tabla_riqueza_abundancia <- function(df, agrupador){
-    df %>%
-      filter(
-        !is.na(.data[[agrupador]]),
-        .data[[agrupador]] != ""
-      ) %>%
-      group_by(
-        .data[[agrupador]]
-      ) %>%
-      summarise(
-        riqueza = n_distinct(ESPECIE),
-        abundancia = sum(CANTIDAD, na.rm = TRUE),
-        .groups = "drop"
-      ) %>%
-      rename(
-        grupo = 1
-      ) %>%
-      arrange(desc(abundancia))
-
-  }
 
   # calcula los índices para todo el conjunto de datos
   resultado_indices <- eventReactive(
     input$run_diversidad,
     {
       df <- datos_reactivos()
-      calcular_indices(df)
+      calcular_indices(df) # en diversidad.R
     }
   )
 
@@ -103,6 +22,7 @@ server <- function(input, output, session) {
     input$run_diversidad,
     {
       df <- datos_reactivos()
+      # en diversidad.R
       tabla_riqueza_abundancia(
         df,
         input$nivel_riqueza
@@ -153,28 +73,6 @@ server <- function(input, output, session) {
       df <- df[df[["PROTOCOLO MUESTREO"]] == input$filtro_protocolo, ]
     df
   })
-  
-  # helper para construir resumen por variable 
-  resumen_por <- function(df, var, metrica) {
-    var_sym <- as.name(var)
-    df <- df[!is.na(df[[var]]) & df[[var]] != "", ]
-    
-    if (metrica == "abundancia") {
-      res <- df |> group_by(across(all_of(var))) |>
-        summarise(valor = sum(CANTIDAD, na.rm = TRUE), .groups = "drop") |>
-        rename(categoria = 1)
-    } else if (metrica == "riqueza") {
-      res <- df |> group_by(across(all_of(var))) |>
-        summarise(valor = n_distinct(ESPECIE), .groups = "drop") |>
-        rename(categoria = 1)
-    } else { # ambas → abundancia (eje primario para ggplot simple)
-      res <- df |> group_by(across(all_of(var))) |>
-        summarise(abundancia = sum(CANTIDAD, na.rm = TRUE),
-                  riqueza    = n_distinct(ESPECIE), .groups = "drop") |>
-        rename(categoria = 1)
-    }
-    res
-  }
   
   output$tabla_indices <- renderDT({
     req(resultado_indices())
@@ -244,6 +142,8 @@ server <- function(input, output, session) {
       TRUE ~ "Categoría"
     )
   
+    # helper para construir resumen por variable 
+    # helpers.R
     res <- resumen_por(df, col, metrica)
     
     if (metrica == "ambas") {
