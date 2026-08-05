@@ -5,9 +5,9 @@ account: registros
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17626059
-bundleId: 12349320
+bundleId: 12370253
 url: https://registros.shinyapps.io/app_registros/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: connect.R
+ignoredFiles: .RData|connect.R

@@ -74,9 +74,9 @@ ui <- navbarPage(
                uiOutput("filtro_protocolo_ui"),
                hr(),
                actionButton("run_graficos","Generar gráficos",
-                            icon = icon("chart-bar"), class = "btn-success w-100"),
+                            icon = icon("chart-bar"), class = "btn-primary w-100"),
                # downloadButton("download_taxonomicos", "Descargar gráficos", class = "btn-primary w-100")
-               downloadButton("download_estacion", "Descargar Estación",class = "btn-primary w-100")
+               downloadButton("download_estacion", "Descargar Estación",class = "btn-success w-100 mt-3")
              ),
              mainPanel(
                # por estación y por metodología
@@ -180,6 +180,11 @@ ui <- navbarPage(
           "Generar curva",
           icon = icon("play"),
           class = "btn-primary w-100"
+        ),
+        downloadButton(
+          "download_curva",
+          "Descargar curva",
+          class = "btn-success w-100 mt-3"
         )
       ),
       mainPanel(
@@ -867,6 +872,101 @@ server <- function(input, output, session) {
       )
     }
   )
+ 
+ output$download_curva <- downloadHandler(
+   filename = function(){
+     "curva_acumulacion.png"
+   },
+   
+   content = function(file){
+     
+     curva <- datos_acumulacion()
+     curva$asintota <- max(curva$estimado, na.rm = TRUE)
+     
+     g <- ggplot(curva, aes(x = esfuerzo)) +
+       
+       geom_ribbon(
+         aes(
+           ymin = observado - observado_sd,
+           ymax = observado + observado_sd,
+           fill = "± 1 DE"
+         ),
+         # fill = "grey80",
+         alpha = .35
+       ) +
+       
+       scale_x_continuous(
+         expand = c(0,0)
+       ) +
+       
+       scale_y_continuous(
+         expand = expansion(mult = c(0, 0.05))
+       ) +
+       
+       geom_line(
+         aes(
+           y = observado,
+           colour = "Observado"
+         ),
+         linewidth = 1.3
+       ) +
+       
+       geom_line(
+         aes(
+           y = estimado,
+           colour = "Estimador",
+           # linetype = "Estimador"
+         ),
+         linewidth = 1.2,
+         linetype = "dashed"
+       ) +
+       
+       geom_line(
+         aes(
+           y = asintota,
+           colour = "Asíntota"
+         ),
+         linewidth = 1.2
+       ) +
+       
+       scale_colour_manual(values = c(
+         Observado = "#1f77b4",
+         Estimador = "#00aa88",
+         Asíntota = "#c9a000"
+       )) +
+       
+       scale_fill_manual(
+         values = c("± 1 DE" = "grey80"),
+         name = NULL
+       ) +
+       
+       labs(
+         x = "Esfuerzo de muestreo",
+         y = "Riqueza de especies",
+         # colour = "",
+         color = NULL,
+         fill = NULL
+       ) +
+       
+       theme_classic() +
+       
+       theme (
+         panel.grid.major.y = element_line(
+           color = "grey80",
+           linewidth = 0.4
+         )
+       )
+     
+     ggsave(
+       filename = file,
+       plot = g,
+       width = 8,
+       height = 5,
+       dpi = 300,
+       bg = "white"
+     )
+   }
+ )
   # output$download_all_radars <- downloadHandler(
   #   filename=function(){
   #     paste0(
