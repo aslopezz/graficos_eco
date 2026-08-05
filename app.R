@@ -119,9 +119,7 @@ ui <- navbarPage(
       mainPanel(
         h4("Índices de diversidad"),
         DTOutput("tabla_indices"),
-        
         br(),
-        
         h4("Abundancia por especie"),
         DTOutput("tabla_abundancia")
       )
@@ -165,12 +163,24 @@ ui <- navbarPage(
           "Número de permutaciones", value = 500, min = 100, max = 1000, step = 100
         ),
         uiOutput("estacion_acum_ui"),
-        # actionButton(
-        #   "run_acumulacion",
-        #   "Generar curva",
-        #   icon = icon("play"),
-        #   class = "btn-primary w-100"
-        # )
+        selectInput(
+          "estimador",
+          "Estimador",
+          choices = c(
+            "Chao 1",
+            "Chao 2",
+            "Jackknife 1",
+            "Bootstrap",
+            "ACE"
+          ),
+          selected = "Chao 1"
+        ),
+        actionButton(
+          "run_acumulacion",
+          "Generar curva",
+          icon = icon("play"),
+          class = "btn-primary w-100"
+        )
       ),
       mainPanel(
         plotOutput("curva_acumulacion", height = "500px")
@@ -181,6 +191,64 @@ ui <- navbarPage(
   # tabPanel("Análisis de similitud", h3("Sección en construcción")),
   # tabPanel("Descargar Darwin Core", h3("Sección en construcción"))
 )
+
+calcular_curva_acumulacion <- function(matriz,
+                                       estimador = "Chao 1",
+                                       nperm = 500){
+  
+  # Curva observada
+  obs <- vegan::specaccum(
+    matriz,
+    method = "random",
+    permutations = nperm
+  )
+  
+  n <- nrow(matriz)
+  riqueza <- matrix(NA, nrow = nperm, ncol = n)
+  
+  for(i in seq_len(nperm)){
+    orden <- sample(n)
+    datos <- matriz[orden, , drop = FALSE]
+    
+    for(j in seq_len(n)){
+      sub <- datos[1:j, , drop = FALSE]
+      
+      valor <- switch(
+        estimador,
+        "Chao 1" = {
+          vegan::estimateR(colSums(sub))[2]
+        },
+        "ACE" = {
+          vegan::estimateR(colSums(sub))[4]
+        },
+        "Chao 2" = {
+          sub.pa <- sub
+          sub.pa[sub.pa > 0] <- 1
+          vegan::specpool(sub.pa)$chao
+        },
+        "Jackknife 1" = {
+          sub.pa <- sub
+          sub.pa[sub.pa > 0] <- 1
+          vegan::specpool(sub.pa)$jack1
+        },
+        "Bootstrap" = {
+          sub.pa <- sub
+          sub.pa[sub.pa > 0] <- 1
+          vegan::specpool(sub.pa)$boot
+        }
+      )
+      riqueza[i, j] <- valor
+    }
+  }
+  
+  data.frame(
+    esfuerzo = obs$sites,
+    observado = obs$richness,
+    observado_sd = obs$sd,
+    estimado = colMeans(riqueza, na.rm = TRUE),
+    estimado_sd = apply(riqueza, 2, sd, na.rm = TRUE)
+  )
+}
 
 server <- function(input, output, session) {
   
@@ -387,26 +455,24 @@ server <- function(input, output, session) {
   # para curva de acumulación de especies
   datos_acumulacion <- eventReactive(input$run_acumulacion, {
     df <- datos_reactivos()
-    df <- df %>%
-      filter(
-        !is.na(FECHA),
-        ESPECIE != ""
-      )
+    df$MUESTRA <- paste(
+      df$FECHA,
+      df$ESTACION,
+      df$`NOMBRE METODOLOGIA`,
+      sep = "_"
+    )
+    
     matriz <- xtabs(
-      ~ FECHA + ESPECIE,
+      CANTIDAD ~ MUESTRA + ESPECIE,
       data = df
     )
+    
     matriz <- as.matrix(matriz)
-    # quitar días sin registros
-    matriz <- matriz[rowSums(matriz) > 0, ]
-    # quitar especies sin registros
-    matriz <- matriz[, colSums(matriz) > 0]
-    if(nrow(matriz) < 2){
-      stop("Se necesitan al menos dos días de muestreo")
-    }
-    vegan::specaccum(
-      matriz,
-      method = "random"
+    
+    calcular_curva_acumulacion(
+      matriz = matriz,
+      estimador = input$estimador,
+      nperm = input$n_perm_acum
     )
   })
   
@@ -555,15 +621,61 @@ server <- function(input, output, session) {
   # output curva de acumulación de especies
   output$curva_acumulacion <- renderPlot({
     curva <- datos_acumulacion()
-    plot(
-      curva,
-      ci.type = "line",
-      col = "#008080",
-      lwd = 3,
-      xlab = "Días de muestreo",
-      ylab = "Especies acumuladas",
-      main = "Curva de acumulación de especies"
-    )
+    curva$asintota <- max(curva$estimado, na.rm = TRUE)
+    
+    ggplot(curva, aes(x = esfuerzo)) +
+      
+      geom_ribbon(
+        aes(
+          ymin = observado - observado_sd,
+          ymax = observado + observado_sd
+        ),
+        fill = "grey80",
+        alpha = .35
+      ) +
+      
+      geom_line(
+        aes(
+          y = observado,
+          colour = "Observado"
+        ),
+        linewidth = 1.3
+      ) +
+      
+      geom_line(
+        aes(
+          y = estimado,
+          colour = "Estimador",
+          linetype = "Estimador"
+        ),
+        linewidth = 1.2
+      ) +
+      
+      geom_line(
+        aes(
+          y = asintota,
+          colour = "Asíntota"
+        ),
+        linewidth = 1.2
+      ) +
+      
+      scale_colour_manual(values = c(
+        Observado = "#1f77b4",
+        Estimador = "#00aa88",
+        Asíntota = "#c9a000"
+      )) +
+      
+      scale_linetype_manual(values = c(
+        Estimador = "dashed"
+      )) +
+      
+      labs(
+        x = "Esfuerzo de muestreo",
+        y = "Riqueza de especies",
+        colour = ""
+      ) +
+      
+      theme_classic()
 
   })
 
