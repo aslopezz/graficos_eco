@@ -162,7 +162,7 @@ ui <- navbarPage(
         h5("Configuración"),
         numericInput(
           "n_perm_acum",
-          "Número de permutaciones", value = 500, min = 100, max = 5000, step = 100
+          "Número de permutaciones", value = 500, min = 100, max = 1000, step = 100
         ),
         uiOutput("estacion_acum_ui"),
         # actionButton(
