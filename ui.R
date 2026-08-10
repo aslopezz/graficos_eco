@@ -91,16 +91,6 @@ ui <- navbarPage(
       )
     )
   ),
-  # tabPanel("Mapas",
-  #          sidebarLayout(
-  #            sidebarPanel(
-  #              h5("Opciones del mapa")
-  #            ),
-  #            mainPanel(
-  #              leaflet::leafletOutput("mapa", height = "700px")
-  #            )
-  #          )
-  # ),
   tabPanel("Tránsito Aéreo",
            sidebarLayout(
              sidebarPanel(
@@ -155,6 +145,57 @@ ui <- navbarPage(
       ),
       mainPanel(
         plotOutput("curva_acumulacion", height = "500px")
+      )
+    )
+  ),
+  tabPanel(
+  "Datos espaciales",
+
+    sidebarLayout(
+
+      sidebarPanel(
+
+        h4("Configuración espacial"),
+
+        radioButtons(
+          "huso_utm",
+          "Huso UTM",
+          choices = c(
+            "18S — WGS84 / UTM 18S (EPSG:32718)" = "18S",
+            "19S — WGS84 / UTM 19S (EPSG:32719)" = "19S"
+          ),
+          selected = "19S"
+        ),
+
+        selectInput(inputId = "region_mapa", label = "Región:", choices = NULL),
+
+        selectInput(inputId = "comuna_mapa", label = "Comuna:", choices = NULL),
+
+        hr(),
+
+        actionButton(
+          "run_espacial",
+          "Generar capa espacial",
+          icon = icon("map"),
+          class = "btn-primary w-100"
+        ),
+
+        br(),
+        br(),
+
+        downloadButton(
+          "download_shp",
+          "Descargar SHP",
+          class = "btn-success w-100"
+        )
+      ),
+
+      mainPanel(
+        h4("Vista previa espacial"),
+        plotOutput(
+          "mapa_espacial",
+          height = "600px"
+        )
       )
     )
   )

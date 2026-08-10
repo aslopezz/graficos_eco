@@ -314,4 +314,239 @@ server <- function(input, output, session) {
      )
    }
  )
+
+comunas_chile <- sf::st_read(
+  "./datos/comunas.gpkg",
+  quiet = TRUE
+)
+
+regiones_chile <- rnaturalearth::ne_states(
+  country = "Chile",
+  returnclass = "sf"
+)
+
+observe({
+  regiones <- comunas_chile %>%
+    sf::st_drop_geometry() %>%
+    dplyr::pull(Region) %>%
+    as.character() %>%
+    trimws() %>%
+    unique() %>%
+    sort()
+
+
+  updateSelectInput(
+    session,
+    "region_mapa",
+    choices = regiones,
+    selected = regiones[1]
+  )
+})
+
+observeEvent(input$region_mapa,{
+    req(input$region_mapa)
+
+    comunas <- comunas_chile %>%
+      dplyr::filter(
+        trimws(Region) ==
+          trimws(input$region_mapa)
+      ) %>%
+      sf::st_drop_geometry() %>%
+      dplyr::pull(Comuna) %>%
+      as.character() %>%
+      trimws() %>%
+      unique() %>%
+      sort()
+
+    updateSelectInput(
+      session,
+      "comuna_mapa",
+
+      choices = comunas,
+
+      selected = if (
+        length(comunas) > 0
+      ) {
+        comunas[1]
+      } else {
+        NULL
+      }
+    )
+  }
+)
+
+
+datos_espaciales <- eventReactive(input$run_espacial,{
+    req(datos_reactivos())
+    req(input$huso_utm)
+    
+    withProgress(
+      message = "Generando capa espacial...",
+      value = 0,
+      {
+        incProgress(
+          0.3,
+          detail = "Procesando coordenadas..."
+        )
+
+        capa <- preparar_datos_espaciales(
+          datos_reactivos(),
+          huso = input$huso_utm
+        )
+
+        incProgress(
+          1,
+          detail = "Finalizado"
+        )
+
+        capa
+      }
+    )
+  }
+)
+
+
+output$mapa_espacial <- renderPlot({
+    req(datos_espaciales())
+    req(input$region_mapa)
+    req(input$comuna_mapa)
+
+    capa <- datos_espaciales()
+
+    region <- regiones_chile %>%
+      dplyr::filter(
+        name == input$region_mapa
+      )
+
+    region <- sf::st_transform(
+      region,
+      4326
+    )
+
+    comuna <- comunas_chile %>%
+      dplyr::filter(
+        trimws(Region) ==
+          trimws(input$region_mapa),
+
+        trimws(Comuna) ==
+          trimws(input$comuna_mapa)
+      )
+
+    comuna <- sf::st_transform(
+      comuna,
+      4326
+    )
+
+    tiene_geometria <- !sf::st_is_empty(
+      sf::st_geometry(capa)
+    )
+
+    puntos <- capa[
+      tiene_geometria, ,drop = FALSE]
+
+    if (nrow(puntos) > 0) {
+      puntos <- sf::st_transform(
+        puntos,
+        4326
+      )
+    }
+
+    p <- ggplot() +
+      geom_sf(
+        data = region,
+        fill = "#F5F5F5",
+        color = "#D62728",
+        linewidth = 0.8
+      ) +
+      geom_sf(
+        data = comuna,
+        fill = "#FFF2CC",
+        color = "#1565C0",
+        linewidth = 1.2,
+        alpha = 0.7
+      )
+
+    if (nrow(puntos) > 0) {
+      p <- p +
+        geom_sf(
+          data = puntos,
+          aes(
+            color = ORIGEN_COORDENADA
+          ),
+          size = 3,
+          alpha = 0.85
+        )
+    }
+
+
+    if (nrow(comuna) > 0) {
+      bbox <- sf::st_bbox(
+        comuna
+      )
+
+      p <- p +
+        coord_sf(
+          xlim = c(
+            bbox["xmin"],
+            bbox["xmax"]
+          ),
+          ylim = c(
+            bbox["ymin"],
+            bbox["ymax"]
+          ),
+          expand = TRUE
+        )
+
+    } else {
+      # Si por alguna razón no encuentra la comuna,
+      # mostrar la región completa.
+      p <- p +
+        coord_sf(
+          datum = sf::st_crs(4326),
+          expand = TRUE
+        )
+    }
+
+    p +
+      ggspatial::annotation_scale(
+        location = "bl",
+        width_hint = 0.25
+      ) +
+      ggspatial::annotation_north_arrow(
+        location = "tl",
+        style =
+          ggspatial::north_arrow_fancy_orienteering
+      ) +
+      labs(
+        title = paste(
+          input$comuna_mapa,
+          "-",
+          input$region_mapa
+        ),
+        subtitle = paste(
+          "Puntos con coordenadas:",
+          nrow(puntos)
+        ),
+        x = "Longitud",
+        y = "Latitud",
+        color = "Origen coordenada"
+      ) +
+
+      theme_classic() +
+
+      theme(
+        plot.title = element_text(
+          hjust = 0.5,
+          face = "bold",
+          size = 16
+        ),
+        plot.subtitle = element_text(
+          hjust = 0.5,
+          size = 11
+        ),
+        legend.position = "bottom"
+      )
+
+  })
+
 }
