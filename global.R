@@ -11,6 +11,7 @@ library(rnaturalearthdata)
 library(sf)
 library(DT)
 library(RColorBrewer)
+library(zip)
 
 graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
