@@ -269,7 +269,7 @@ crear_shp_terreno <- function(
       NOM_EST_MU = ESTACION,
 
       # MÉTODO
-      METODO = `NOMBRE METODOLOGIA`,
+      METODO = `PROTOCOLO MUESTREO`,
 
       # AMBIENTE / FAUNA
       AMB_FAUNA = NA_character_,
