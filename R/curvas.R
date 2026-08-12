@@ -1,22 +1,17 @@
 calcular_curva_acumulacion <- function(matriz,
                                        estimador = "Chao 1",
-                                       nperm = 500){
-  
+                                       nperm = 500) {
   # Curva observada
-  obs <- vegan::specaccum(
-    matriz,
-    method = "random",
-    permutations = nperm
-  )
+  obs <- vegan::specaccum(matriz, method = "random", permutations = nperm)
   
   n <- nrow(matriz)
   riqueza <- matrix(NA, nrow = nperm, ncol = n)
   
-  for(i in seq_len(nperm)){
+  for (i in seq_len(nperm)) {
     orden <- sample(n)
     datos <- matriz[orden, , drop = FALSE]
     
-    for(j in seq_len(n)){
+    for (j in seq_len(n)) {
       sub <- datos[1:j, , drop = FALSE]
       
       valor <- switch(

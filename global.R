@@ -5,8 +5,13 @@ library(leaflet)
 library(vegan)
 library(dplyr)
 library(ggplot2)
+library(ggspatial)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
 library(DT)
 library(RColorBrewer)
+library(zip)
 
 graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
@@ -24,3 +29,4 @@ source("R/datos.R")
 source("R/plots.R")
 source("R/helpers.R")
 source("R/diversidad.R")
+source("R/espacial.R") # funciones para datos espaciales

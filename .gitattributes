@@ -1,0 +1,2 @@
+*.gpkg filter=lfs diff=lfs merge=lfs -text
+datos/comunas.gpkg filter=lfs diff=lfs merge=lfs -text
