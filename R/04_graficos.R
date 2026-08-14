@@ -67,17 +67,43 @@ graficar <- function(df, col, titulo, tipo, metrica, paleta) {
         legend.position = "none"
       )
   } else {
-    res$pct <- round(res$valor / sum(res$valor) * 100, 1)
+    umbral <- 5
     
-    p <- ggplot(res, aes(x = "", y = valor, fill = categoria)) +
+    res <- res |>
+      mutate(pct = valor / sum(valor, na.rm = TRUE) * 100) |>
+      mutate(
+        categoria = if_else(pct < umbral, "Otros", categoria)
+      ) |>
+      group_by(categoria) |>
+      summarise(
+        valor = sum(valor, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(
+        pct = round(valor / sum(valor, na.rm = TRUE) * 100, 1)
+      )
+    
+    colores <- map_colors(res$categoria, paleta)
+    colores["Otros"] <- "grey80"
+
+    p <- ggplot(res, aes(x = 2, y = valor, fill = categoria)) +
       geom_col(width = 1, color = "white", linewidth = 0.4) +
-      # geom_text(aes(label = paste0(pct, "%")), position = position_stack(vjust = 0.5), color = "black", size = 4) +
+      geom_text(
+        aes(label = paste0(pct, "%")),
+        position = position_stack(vjust = 0.5),
+        color = "black",
+        size = 4
+      ) +
       coord_polar("y") +
-      scale_fill_manual(values = map_colors(res$categoria, paleta)) +
+      xlim(0.5, 2.5) +
+      scale_fill_manual(values = colores) +
       labs(title = titulo, fill = nombre_leyenda) +
       theme_void(base_size = 11) +
-      theme(plot.title = element_text(face = "bold", hjust = 0.5))
-    }
+      theme(
+        plot.title = element_text(face = "bold", hjust = 0.5)
+      )
+
+  }
   p
 }
 
@@ -101,12 +127,9 @@ plot_curva_acumulacion <- function(curva) {
     
     geom_line(aes(y = observado, colour = "Observado"), linewidth = 1.3) +
     
-    geom_line(aes(
-      y = estimado,
-      colour = "Estimador",
-    ),
-    linewidth = 1.2,
-    linetype = "dashed") +
+    geom_line(aes(y = estimado, colour = "Estimador", ),
+              linewidth = 1.2,
+              linetype = "dashed") +
     
     geom_line(aes(y = asintota, colour = "Asíntota"), linewidth = 1.2) +
     
