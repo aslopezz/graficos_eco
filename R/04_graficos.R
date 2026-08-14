@@ -42,7 +42,8 @@ graficar <- function(df, col, titulo, tipo, metrica, paleta) {
     "Nº especies"
   }
   if (tipo == "barras") {
-    res <- res |> arrange(desc(valor))
+    res <- res |> arrange(desc(valor)) |>
+      mutate(categoria = stringr::str_to_title(categoria))
     p <- ggplot(res, aes(x = categoria, y = valor, fill = categoria)) +
       geom_col(width = 0.7, alpha = 0.9, ) +
       geom_text(aes(label = valor), vjust = -0.5, size = 3.5) +
@@ -70,8 +71,11 @@ graficar <- function(df, col, titulo, tipo, metrica, paleta) {
     umbral <- 5
     
     res <- res |>
-      mutate(pct = valor / sum(valor, na.rm = TRUE) * 100) |>
-      mutate(categoria = if_else(pct < umbral, "Otros", categoria)) |>
+      mutate(
+        pct = valor / sum(valor, na.rm = TRUE) * 100, 
+        categoria = if_else(pct < umbral, "Otros", categoria),
+        categoria = stringr::str_to_title(categoria)
+        ) |>
       group_by(categoria) |>
       summarise(
         valor = sum(valor, na.rm = TRUE),
