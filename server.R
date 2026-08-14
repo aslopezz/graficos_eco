@@ -133,8 +133,8 @@ server <- function(input, output, session) {
   
   grafico_estacion <- reactive({
     req(datos_graficos())
-    # plots.R
-    hacer_grafico(datos_graficos(),
+    # 04_graficos.R
+    graficar(datos_graficos(),
                   "ESTACION",
                   "",
                   input$tipo_grafico,
@@ -148,9 +148,9 @@ server <- function(input, output, session) {
   
   output$graf_metodologia <- renderPlot({
     req(datos_graficos())
-    hacer_grafico(
+    graficar(
       datos_graficos(),
-      "NOMBRE METODOLOGIA",
+      "PROTOCOLO MUESTREO",
       "",
       input$tipo_grafico,
       input$metricas,
@@ -160,7 +160,7 @@ server <- function(input, output, session) {
   
   output$graf_orden <- renderPlot({
     req(datos_graficos())
-    hacer_grafico(datos_graficos(),
+    graficar(datos_graficos(),
                   "ORDEN",
                   "",
                   input$tipo_grafico,
@@ -170,7 +170,7 @@ server <- function(input, output, session) {
   
   output$graf_clase <- renderPlot({
     req(datos_graficos())
-    hacer_grafico(datos_graficos(),
+    graficar(datos_graficos(),
                   "CLASE",
                   "",
                   input$tipo_grafico,

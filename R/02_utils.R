@@ -5,7 +5,7 @@ map_colors <- function(categories, pal) {
   setNames(rep_len(pal, length(cats)), cats)
 }
 
-# helper para construir resumen por variable
+# construir resumen por variable
 resumen_por_variable <- function(df, var_p, metrica) {
   # var_sym <- as.name(var)
   df <- df[!is.na(df[[var_p]]) & df[[var_p]] != "", ]

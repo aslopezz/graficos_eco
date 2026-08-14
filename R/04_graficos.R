@@ -1,14 +1,14 @@
-hacer_grafico <- function(df, col, titulo, tipo, metrica, paleta) {
+graficar <- function(df, col, titulo, tipo, metrica, paleta) {
   nombre_leyenda <- case_when(
     col == "ESTACION" ~ "Estación",
-    col == "NOMBRE METODOLOGIA" ~ "Metodología",
+    col == "PROTOCOLO MUESTREO" ~ "Protocolo de Muestreo",
     col == "ORDEN" ~ "Orden",
     col == "CLASE" ~ "Clase",
     TRUE ~ "Categoría"
   )
   
-  # helper para construir resumen por variable
-  # helpers.R
+  # construir resumen por variable
+  # 02_utils.R
   res <- resumen_por_variable(df, col, metrica)
   
   if (metrica == "ambas") {
@@ -51,7 +51,7 @@ hacer_grafico <- function(df, col, titulo, tipo, metrica, paleta) {
         title = titulo,
         x = NULL,
         y = y_lab,
-        fill = nombre_leyenda
+        # fill = nombre_leyenda
       ) +
       theme_minimal(base_size = 11) +
       theme(
@@ -61,10 +61,10 @@ hacer_grafico <- function(df, col, titulo, tipo, metrica, paleta) {
         # quitar líneas verticales
         panel.grid.major.x = element_blank(),
         # mantener líneas horizontales
-        panel.grid.major.y = element_line(color = "grey80", linewidth =
-                                            0.4),
+        panel.grid.major.y = element_line(color = "grey80", linewidth = 0.4),
         plot.title = element_text(face = "bold", size = 11),
-        legend.position = "right"
+        # legend.position = "right"
+        legend.position = "none"
       )
   } else {
     res$pct <- round(res$valor / sum(res$valor) * 100, 1)
@@ -92,7 +92,6 @@ plot_curva_acumulacion <- function(curva) {
         ymax = observado + observado_sd,
         fill = "± 1 DE"
       ),
-      # fill = "grey80",
       alpha = .35
     ) +
     
@@ -105,7 +104,6 @@ plot_curva_acumulacion <- function(curva) {
     geom_line(aes(
       y = estimado,
       colour = "Estimador",
-      # linetype = "Estimador"
     ),
     linewidth = 1.2,
     linetype = "dashed") +
@@ -123,7 +121,6 @@ plot_curva_acumulacion <- function(curva) {
     labs(
       x = "Esfuerzo de muestreo",
       y = "Riqueza de especies",
-      # colour = "",
       color = NULL,
       fill = NULL
     ) +
