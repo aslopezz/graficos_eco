@@ -6,10 +6,10 @@ app/
 ├── ui.R
 ├── server.R
 └── R/
-    ├── helpers.R > map_colors, resumen_por (resumenes por variable)
-    ├── plots.R > hacer_grafico (riqueza/abundancia),plot_curva_acumulacion
-    ├── diversidad.R > calcular_indices, tabla_riqueza_abundancia
-    ├── espacial.R > preparar_datos_espaciales para mapa (y shp?)
-    ├── datos.R > procesar_datos_entrada
-    └── curvas.R > curva de acumulación de especies
+    ├── 01_cargar_datos.R > procesar_datos_entrada
+    ├── 02_utils.R > map_colors, resumen_por_variable
+    ├── 03_indices_diversidad.R > calcular_indices, tabla_riqueza_abundancia
+    ├── 04_graficos.R > graficar, plot_curva_acumulacion
+    ├── 05_curvas_acumulacion.R > calcular_curva_acumulacion
+    └── 06_analisis_espacial.R > preparar_datos_espaciales, crear_shp_terreno
     
