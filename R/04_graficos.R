@@ -9,7 +9,7 @@ hacer_grafico <- function(df, col, titulo, tipo, metrica, paleta) {
   
   # helper para construir resumen por variable
   # helpers.R
-  res <- resumen_por(df, col, metrica)
+  res <- resumen_por_variable(df, col, metrica)
   
   if (metrica == "ambas") {
     res_long <- tidyr::pivot_longer(

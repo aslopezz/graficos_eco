@@ -176,18 +176,13 @@ preparar_datos_espaciales <- function(df, huso, fecha_ini, fecha_ter) {
   resultado <- sf::st_sf(df, geometry = geometria)
   
   message("")
-  message("==============================")
   message("DIAGNOSTICO ESPACIAL")
-  message("==============================")
-  
   message("Total registros: ", nrow(resultado))
-  
   message(
     "Coordenadas originales: ",
     sum(resultado$ORIGEN_COORDENADA ==
           "ORIGINAL", na.rm = TRUE)
   )
-  
   message(
     "Coordenadas Punto de Aves: ",
     sum(
@@ -196,7 +191,6 @@ preparar_datos_espaciales <- function(df, huso, fecha_ini, fecha_ter) {
       na.rm = TRUE
     )
   )
-  
   message(
     "Coordenadas ecolocalización: ",
     sum(
@@ -205,12 +199,9 @@ preparar_datos_espaciales <- function(df, huso, fecha_ini, fecha_ter) {
       na.rm = TRUE
     )
   )
-  
   message("Sin coordenadas: ", sum(is.na(resultado$COOR_X) |
                                      is.na(resultado$COOR_Y)))
   
-  message("==============================")
-  message("")
   
   resultado
 }
@@ -223,10 +214,6 @@ crear_shp_terreno <- function(
     fecha_ini,
     fecha_ter
 ) {
-
-  # ============================================================
-  # VALIDAR FECHAS
-  # ============================================================
 
   fecha_ini <- as.Date(fecha_ini)
   fecha_ter <- as.Date(fecha_ter)
@@ -245,101 +232,52 @@ crear_shp_terreno <- function(
     fecha_ter - fecha_ini
   ) + 1
 
-
-  # ============================================================
-  # VALIDAR HUSO
-  # ============================================================
-
   if (!huso %in% c("18S", "19S")) {
     stop("El huso debe ser 18S o 19S.")
   }
 
-
-  # ============================================================
-  # CREAR CAMPOS DEL SHP
-  # ============================================================
-
   shp <- capa %>%
     dplyr::mutate(
-
-      # CAMPAÑA
       NOM_CAMP = TERRENO,
-
-      # ESTACIÓN
       NOM_EST_MU = ESTACION,
-
-      # MÉTODO
       METODO = `PROTOCOLO MUESTREO`,
-
-      # AMBIENTE / FAUNA
+      # ESTO FALTAAAA no se :c
       AMB_FAUNA = NA_character_,
-
-      # NOMBRE COMÚN
       NOM_COMUN = `NOMBRE COMUN`,
-
-      # ESPECIE
       ESP_CC = dplyr::case_when(
-
         !is.na(GENERO) &
           trimws(GENERO) != "" &
           !is.na(`EPITETO ESPECIFICO`) &
           trimws(`EPITETO ESPECIFICO`) != "" ~
-
           paste(
             trimws(GENERO),
             trimws(`EPITETO ESPECIFICO`)
           ),
-
         !is.na(GENERO) &
           trimws(GENERO) != "" ~
-
           trimws(GENERO),
-
         TRUE ~ NA_character_
       ),
-
-      # CCV
+      # Tampoco se que chucha esto 
       CCV = NA_character_,
-
-      # FECHAS DE CAMPAÑA
       FECHA_INI = fecha_ini,
-
       FECHA_TER = fecha_ter,
-
       TOTAL_DIAS = total_dias,
-
-      # MES
       MES = lubridate::month(fecha_ini),
-
-      # ESTACIÓN
       ESTACION = ESTACION,
-
-      # AÑO
       AÑO = lubridate::year(fecha_ini),
-
       # COORDENADAS UTM
       COOR_X = COOR_X,
-
       COOR_Y = COOR_Y,
-
-      # HUSO
       HUSO = huso,
-
-      # LOCALIDAD
+      # LOCALIDAD, falta input
       LOCALIDAD = NA_character_,
-
-      # COMUNA SELECCIONADA
       COMUNA = comuna,
-
-      # REGIÓN SELECCIONADA
       REGION = region
     )
 
-
-  # ============================================================
-  # SELECCIONAR CAMPOS FINALES
-  # ============================================================
-
+  # Plantilla de geoingormación SEIA
+  # Ecosistemas terrestres > Animales silvestres > Estacioness de muestreo de fauna silvestre
   shp <- shp %>%
     dplyr::select(
       NOM_CAMP,
@@ -364,10 +302,6 @@ crear_shp_terreno <- function(
       geometry
     )
 
-
-  # ============================================================
   # DEVOLVER SHP
-  # ============================================================
-
   shp
 }

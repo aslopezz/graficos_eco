@@ -24,9 +24,10 @@ pal_set2 <- brewer.pal(8, "Set2")
 pal_pastel1 <- brewer.pal(9, "Pastel1")
 pal_pastel2 <- brewer.pal(8, "Pastel2")
 
-source("R/curvas.R") # funcion curca de acumulación
-source("R/datos.R") 
-source("R/plots.R")
-source("R/helpers.R")
-source("R/diversidad.R")
-source("R/espacial.R") # funciones para datos espaciales
+source("R/01_cargar_datos.R")
+source("R/02_utils.R")
+source("R/03_indices_diversidad.R")
+source("R/04_graficos.R")
+source("R/05_curvas_acumulacion.R")
+source("R/06_analisis_espacial.R") 
+

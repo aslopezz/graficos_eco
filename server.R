@@ -53,7 +53,6 @@ server <- function(input, output, session) {
   ), rownames = FALSE)
   
   # filtros dinámicos
-  
   output$filtro_protocolo_ui <- renderUI({
     req(datos_reactivos())
     protocolos <- sort(unique(datos_reactivos()[["PROTOCOLO MUESTREO"]]))
@@ -495,21 +494,12 @@ server <- function(input, output, session) {
   },
 
   content = function(file) {
-
-    # ==========================================================
-    # 1. VALIDACIONES
-    # ==========================================================
-
     req(datos_espaciales())
     req(input$region_mapa)
     req(input$comuna_mapa)
     req(input$huso_utm)
     req(input$fecha_ini_campana)
     req(input$fecha_ter_campana)
-
-    # ==========================================================
-    # 2. OBTENER CAPA
-    # ==========================================================
 
     capa <- datos_espaciales()
 
@@ -520,10 +510,6 @@ server <- function(input, output, session) {
     if (nrow(capa) == 0) {
       stop("La capa espacial está vacía.")
     }
-
-    # ==========================================================
-    # 3. CREAR SHP
-    # ==========================================================
 
     shp <- crear_shp_terreno(
       capa = capa,
@@ -546,10 +532,6 @@ server <- function(input, output, session) {
       stop("La capa no tiene sistema de coordenadas definido.")
     }
 
-    # ==========================================================
-    # 4. CARPETA TEMPORAL
-    # ==========================================================
-
     carpeta_temp <- tempfile("shp_")
 
     dir.create(
@@ -563,20 +545,12 @@ server <- function(input, output, session) {
       add = TRUE
     )
 
-    # ==========================================================
-    # 5. RUTA DEL SHP
-    # ==========================================================
-
     nombre_shp <- "Estaciones_de_muestreo_de_fauna_terrestre"
 
     ruta_shp <- file.path(
       carpeta_temp,
       paste0(nombre_shp, ".shp")
     )
-
-    # ==========================================================
-    # 6. ESCRIBIR SHAPEFILE
-    # ==========================================================
 
     sf::st_write(
       shp,
@@ -585,10 +559,6 @@ server <- function(input, output, session) {
       delete_layer = TRUE,
       quiet = TRUE
     )
-
-    # ==========================================================
-    # 7. COMPROBAR QUE REALMENTE SE CREÓ
-    # ==========================================================
 
     archivos <- list.files(
       carpeta_temp,
@@ -611,10 +581,6 @@ server <- function(input, output, session) {
         )
       )
     }
-
-    # ==========================================================
-    # 8. CREAR ZIP TEMPORAL
-    # ==========================================================
 
     zip_temp <- tempfile(
       pattern = "fauna_",
@@ -669,10 +635,6 @@ server <- function(input, output, session) {
       )
     }
 
-    # ==========================================================
-    # 10. COMPROBAR ARCHIVO FINAL
-    # ==========================================================
-
     if (!file.exists(file)) {
 
       stop(
@@ -682,20 +644,13 @@ server <- function(input, output, session) {
 
     tamano_final <- file.info(file)$size
 
-    # ==========================================================
-    # 12. DIAGNÓSTICO
-    # ==========================================================
-
-    message("====================================")
     message("DESCARGA SHP")
-    message("====================================")
     message("SHP: ", ruta_shp)
     message("ZIP temporal: ", zip_temp)
     message("ZIP final: ", file)
     message("Tamaño ZIP: ", file.info(file)$size, " bytes")
     message("Archivos incluidos:")
     print(archivos)
-    message("====================================")
   }
 )
 }
