@@ -12,7 +12,8 @@ library(sf)
 library(DT)
 library(RColorBrewer)
 library(zip)
-library(ggrepel)
+# ggreppel es para mejorar el pie hcart
+# library(ggrepel)
 
 graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
