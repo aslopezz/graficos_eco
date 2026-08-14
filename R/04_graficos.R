@@ -68,16 +68,16 @@ graficar <- function(df, col, titulo, tipo, metrica, paleta) {
       )
   } else {
     res$pct <- round(res$valor / sum(res$valor) * 100, 1)
+    
     p <- ggplot(res, aes(x = "", y = valor, fill = categoria)) +
-      geom_col(width = 1,
-               color = "white",
-               linewidth = 0.4) +
+      geom_col(width = 1, color = "white", linewidth = 0.4) +
+      # geom_text(aes(label = paste0(pct, "%")), position = position_stack(vjust = 0.5), color = "black", size = 4) +
       coord_polar("y") +
       scale_fill_manual(values = map_colors(res$categoria, paleta)) +
-      labs(title = titulo, fill = NULL) +
+      labs(title = titulo, fill = nombre_leyenda) +
       theme_void(base_size = 11) +
       theme(plot.title = element_text(face = "bold", hjust = 0.5))
-  }
+    }
   p
 }
 

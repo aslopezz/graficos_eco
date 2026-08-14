@@ -12,6 +12,7 @@ library(sf)
 library(DT)
 library(RColorBrewer)
 library(zip)
+library(ggrepel)
 
 graf_a <- "#209b87"
 graf_b <- "#5ecfa6"
