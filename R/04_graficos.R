@@ -71,16 +71,18 @@ graficar <- function(df, col, titulo, tipo, metrica, paleta) {
     
     res <- res |>
       mutate(pct = valor / sum(valor, na.rm = TRUE) * 100) |>
-      mutate(
-        categoria = if_else(pct < umbral, "Otros", categoria)
-      ) |>
+      mutate(categoria = if_else(pct < umbral, "Otros", categoria)) |>
       group_by(categoria) |>
       summarise(
         valor = sum(valor, na.rm = TRUE),
         .groups = "drop"
       ) |>
       mutate(
-        pct = round(valor / sum(valor, na.rm = TRUE) * 100, 1)
+        pct = round(valor / sum(valor, na.rm = TRUE) * 100, 1),
+        categoria = factor(categoria, levels = c(
+          setdiff(categoria, "Otros"),
+          "Otros"
+        ))
       )
     
     colores <- map_colors(res$categoria, paleta)
