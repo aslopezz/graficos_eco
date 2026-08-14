@@ -10,7 +10,7 @@ server <- function(input, output, session) {
       encoding = "UTF-8",
       check.names = FALSE
     )
-    # datos.R
+    # 01_cargar_datos.R
     procesar_datos_entrada(df)
   })
   
@@ -333,9 +333,7 @@ server <- function(input, output, session) {
     
     updateSelectInput(session,
                       "comuna_mapa",
-                      
                       choices = comunas,
-                      
                       selected = if (length(comunas) > 0) {
                         comunas[1]
                       } else {
@@ -363,13 +361,9 @@ server <- function(input, output, session) {
       
       capa <- preparar_datos_espaciales(
         df = datos_reactivos(),
-        
         huso = input$huso_utm,
-        
         fecha_ini = input$fecha_ini_campana,
-        
         fecha_ter = input$fecha_ter_campana
-        
       )
       
       incProgress(1, detail = "Finalizado")
