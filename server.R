@@ -301,21 +301,26 @@ server <- function(input, output, session) {
   )
   
   comunas_chile <- sf::st_read("./datos/comunas.gpkg", quiet = TRUE)
+  regiones_chile <- sf::st_read("./datos/regiones.gpkg", quiet = TRUE) %>%
+    dplyr::filter(
+      trimws(Region) != "Zona sin demarcar"
+    )
   
   observe({
-    regiones <- comunas_chile %>%
-      sf::st_drop_geometry() %>%
-      dplyr::pull(Region) %>%
-      as.character() %>%
-      trimws() %>%
-      unique() %>%
-      sort()
-    
-    
-    updateSelectInput(session,
-                      "region_mapa",
-                      choices = regiones,
-                      selected = regiones[1])
+    regiones <- regiones_chile %>%
+    sf::st_drop_geometry() %>%
+    dplyr::pull(Region) %>%
+    as.character() %>%
+    trimws() %>%
+    unique() %>%
+    sort()
+  
+    updateSelectInput(
+      session,
+      "region_mapa",
+      choices = regiones,
+      selected = regiones[1]
+    )
   })
   
   observeEvent(input$region_mapa, {
@@ -381,12 +386,11 @@ server <- function(input, output, session) {
     
     capa <- datos_espaciales()
     
-    region <- comunas_chile %>%
+    region <- regiones_chile %>%
       dplyr::filter(
         trimws(Region) == trimws(input$region_mapa)
-      )
-
-    region <- sf::st_transform(region, 4326)
+      ) %>%
+      sf::st_transform(region, 4326)
     
     comuna <- comunas_chile %>%
       dplyr::filter(
@@ -476,6 +480,68 @@ server <- function(input, output, session) {
       )
     
   })
+
+  output$download_mapa_chile <- downloadHandler(
+    filename = function() {
+      paste0(
+        "Mapa_Chile_",
+        input$region_mapa,
+        "_",
+        input$comuna_mapa,
+        ".png"
+      )
+    },
+    
+    content = function(file) {
+      p <- crear_mapa_chile(
+        regiones_chile = regiones_chile,
+        comunas_chile = comunas_chile,
+        region_seleccionada = input$region_mapa,
+        comuna_seleccionada = input$comuna_mapa
+      )
+
+      ggplot2::ggsave(
+        filename = file,
+        plot = p,
+        width = 8,
+        height = 10,
+        units = "in",
+        dpi = 300,
+        bg = "white"
+      )
+    }
+  )
+
+  output$download_mapa_region <- downloadHandler(
+    filename = function() {
+      paste0(
+        "Mapa_Region_",
+        input$region_mapa,
+        "_",
+        input$comuna_mapa,
+        ".png"
+      )
+    },
+
+    content = function(file) {
+
+      p <- crear_mapa_region(
+        comunas_chile = comunas_chile,
+        region_seleccionada = input$region_mapa,
+        comuna_seleccionada = input$comuna_mapa
+      )
+
+      ggplot2::ggsave(
+        filename = file,
+        plot = p,
+        width = 8,
+        height = 8,
+        units = "in",
+        dpi = 300,
+        bg = "white"
+      )
+    }
+  )
   
   output$download_shp <- downloadHandler(
 

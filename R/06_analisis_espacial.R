@@ -305,3 +305,193 @@ crear_shp_terreno <- function(
   # DEVOLVER SHP
   shp
 }
+
+crear_mapa_chile <- function(
+    regiones_chile,
+    comunas_chile,
+    region_seleccionada,
+    comuna_seleccionada
+) {
+  
+  region_seleccionada <- trimws(as.character(region_seleccionada))
+  comuna_seleccionada <- trimws(as.character(comuna_seleccionada))
+  
+  # TODAS LAS REGIONES
+  regiones <- regiones_chile %>%
+    sf::st_transform(4326) %>%
+    sf::st_make_valid() %>%
+    dplyr::mutate(
+      Region = trimws(as.character(Region))
+    ) %>%
+    dplyr::filter(
+      Region != "Zona sin demarcar"
+    )
+
+  region_sel <- regiones %>%
+    dplyr::filter(
+      Region == region_seleccionada
+  )
+  
+  # COMUNAS DE LA REGION SELECCIONADA
+  comunas <- comunas_chile %>%
+    sf::st_transform(4326) %>%
+    sf::st_make_valid() %>%
+    dplyr::mutate(
+      Region = trimws(as.character(Region)),
+      Comuna = trimws(as.character(Comuna))
+    ) %>%
+    dplyr::filter(
+      Region == region_seleccionada
+    )
+  
+  # COMUNA SELECCIONADA
+  comuna_sel <- comunas %>%
+    dplyr::filter(
+      Region == region_seleccionada,
+      Comuna == comuna_seleccionada
+    )
+  
+  ggplot2::ggplot() +
+    # Todas las regiones
+    ggplot2::geom_sf(
+      data = regiones,
+      fill = "#F2F2F2",
+      color = "#999999",
+      linewidth = 0.45
+    ) +
+    # Región seleccionada
+    ggplot2::geom_sf(
+      data = region_sel,
+      fill = "#A6A6A6",
+      color = "#555555",
+      linewidth = 0.9
+    ) +
+    # Límites comunales de la región seleccionada
+    #ggplot2::geom_sf(
+    #  data = comunas,
+    #  fill = NA,
+    #  color = "#A6A6A6",
+    #  linewidth = 0.25
+    #) +
+    # Comuna seleccionada
+    ggplot2::geom_sf(
+      data = comuna_sel,
+      fill = "#ffbb00",
+      color = "#ffbb00",
+      linewidth = 0.2
+    ) +
+    ggplot2::labs(
+      title = "Ubicación del área de estudio",
+      subtitle = paste(
+        comuna_seleccionada,
+        "-",
+        region_seleccionada
+      )
+    ) +
+    
+    ggplot2::theme_void() +
+    
+    ggplot2::coord_sf(
+        xlim = c(-76, -66),
+        # ylim = c(-56, -17),
+        expand = FALSE
+    ) +
+    
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 16
+      ),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5,
+        size = 11
+      ),
+      plot.margin = ggplot2::margin(
+        10, 10, 10, 10
+      )
+    )
+}
+
+crear_mapa_region <- function(
+    comunas_chile,
+    region_seleccionada,
+    comuna_seleccionada
+) {
+  
+  region_seleccionada <- trimws(as.character(region_seleccionada))
+  comuna_seleccionada <- trimws(as.character(comuna_seleccionada))
+  
+  comunas_region <- comunas_chile %>%
+    sf::st_transform(4326) %>%
+    sf::st_make_valid() %>%
+    dplyr::mutate(
+      Region = trimws(as.character(Region)),
+      Comuna = trimws(as.character(Comuna))
+    ) %>%
+    dplyr::filter(
+      Region == region_seleccionada
+    )
+
+  comuna <- comunas_region %>%
+    dplyr::filter(
+      Comuna == comuna_seleccionada
+    )
+  
+  limite_region <- comunas_region %>%
+    sf::st_union()
+  
+  ggplot2::ggplot() +
+    
+    # Comunas
+    ggplot2::geom_sf(
+      data = comunas_region,
+      fill = "#E6E6E6",
+      color = "#BDBDBD",
+      linewidth = 0.3
+    ) +
+    
+    # Comuna seleccionada
+    ggplot2::geom_sf(
+      data = comuna,
+      fill = "#ffbb00",
+      color = "#000000",
+      linewidth = 0.3
+    ) +
+    
+    # Límite exterior de la región
+    ggplot2::geom_sf(
+      data = limite_region,
+      fill = NA,
+      color = "#000000",
+      linewidth = 1
+    ) +
+    
+    ggplot2::labs(
+      title = region_seleccionada,
+      subtitle = paste(
+        "Comuna de ",
+        comuna_seleccionada
+      )
+    ) +
+    
+    ggplot2::theme_void() +
+    
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 16
+      ),
+      plot.subtitle = ggplot2::element_text(
+        hjust = 0.5,
+        size = 11
+      ),
+      plot.margin = ggplot2::margin(
+        10,
+        10,
+        10,
+        10
+      )
+    )
+}

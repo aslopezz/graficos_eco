@@ -207,11 +207,16 @@ ui <- navbarPage(
       
       actionButton(
         "run_espacial",
-        "Generar capa espacial",
+        "Visualizar puntos en mapa",
         icon = icon("map"),
         class = "btn-primary w-100 mb-3"
       ),
-      
+
+      h5("Exportar imagenes de área"),
+      downloadButton("download_mapa_chile", "Chile", class = "btn-success w-100 mb-2"),
+      downloadButton("download_mapa_region", "Región", class = "btn-success w-100 mb-2"),
+
+      h5("Datos para el shp"),
       dateInput(
         inputId = "fecha_ini_campana",
         label = "Fecha inicio de campaña:",
