@@ -493,22 +493,25 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      p <- crear_mapa_chile(
-        regiones_chile = regiones_chile,
-        comunas_chile = comunas_chile,
-        region_seleccionada = input$region_mapa,
-        comuna_seleccionada = input$comuna_mapa
-      )
+      withProgress(message = "Generando imagen de chile...", value = 0, {
+        p <- crear_mapa_chile(
+          regiones_chile = regiones_chile,
+          comunas_chile = comunas_chile,
+          region_seleccionada = input$region_mapa,
+          comuna_seleccionada = input$comuna_mapa
+        )
 
-      ggplot2::ggsave(
-        filename = file,
-        plot = p,
-        width = 8,
-        height = 10,
-        units = "in",
-        dpi = 300,
-        bg = "white"
-      )
+        ggplot2::ggsave(
+          filename = file,
+          plot = p,
+          width = 8,
+          height = 10,
+          units = "in",
+          dpi = 300,
+          bg = "white"
+        )
+
+      })
     }
   )
 
@@ -524,193 +527,200 @@ server <- function(input, output, session) {
     },
 
     content = function(file) {
+      withProgress(message="Generando mapa de la región...", value = 20 ,{
 
-      p <- crear_mapa_region(
-        comunas_chile = comunas_chile,
-        region_seleccionada = input$region_mapa,
-        comuna_seleccionada = input$comuna_mapa
-      )
+        p <- crear_mapa_region(
+          comunas_chile = comunas_chile,
+          region_seleccionada = input$region_mapa,
+          comuna_seleccionada = input$comuna_mapa
+        )
 
-      ggplot2::ggsave(
-        filename = file,
-        plot = p,
-        width = 8,
-        height = 8,
-        units = "in",
-        dpi = 300,
-        bg = "white"
-      )
+        ggplot2::ggsave(
+          filename = file,
+          plot = p,
+          width = 8,
+          height = 8,
+          units = "in",
+          dpi = 300,
+          bg = "white"
+        )
+
+      })
     }
   )
   
   output$download_shp <- downloadHandler(
 
-  filename = function() {
-    paste0(
-      "Estaciones_de_muestreo_de_fauna_terrestre_",
-      Sys.Date(),
-      ".zip"
-    )
-  },
+    filename = function() {
+      paste0(
+        "Estaciones_de_muestreo_de_fauna_terrestre_",
+        Sys.Date(),
+        ".zip"
+      )
+    },
 
-  content = function(file) {
-    req(datos_espaciales())
-    req(input$region_mapa)
-    req(input$comuna_mapa)
-    req(input$huso_utm)
-    req(input$fecha_ini_campana)
-    req(input$fecha_ter_campana)
+    content = function(file) {
+      withProgress(message = "Generando Shapefile...", value = 0, {
 
-    capa <- datos_espaciales()
+      req(datos_espaciales())
+      req(input$region_mapa)
+      req(input$comuna_mapa)
+      req(input$huso_utm)
+      req(input$fecha_ini_campana)
+      req(input$fecha_ter_campana)
 
-    if (!inherits(capa, "sf")) {
-      stop("La capa espacial no es un objeto sf.")
-    }
+      capa <- datos_espaciales()
 
-    if (nrow(capa) == 0) {
-      stop("La capa espacial está vacía.")
-    }
+      if (!inherits(capa, "sf")) {
+        stop("La capa espacial no es un objeto sf.")
+      }
 
-    shp <- crear_shp_terreno(
-      capa = capa,
-      region = input$region_mapa,
-      comuna = input$comuna_mapa,
-      fecha_ini = input$fecha_ini_campana,
-      fecha_ter = input$fecha_ter_campana,
-      huso = input$huso_utm
-    )
+      if (nrow(capa) == 0) {
+        stop("La capa espacial está vacía.")
+      }
 
-    if (!inherits(shp, "sf")) {
-      stop("crear_shp_terreno() no devolvió un objeto sf.")
-    }
+      shp <- crear_shp_terreno(
+        capa = capa,
+        region = input$region_mapa,
+        comuna = input$comuna_mapa,
+        fecha_ini = input$fecha_ini_campana,
+        fecha_ter = input$fecha_ter_campana,
+        huso = input$huso_utm
+      )
 
-    if (nrow(shp) == 0) {
-      stop("El Shapefile no contiene registros.")
-    }
+      if (!inherits(shp, "sf")) {
+        stop("crear_shp_terreno() no devolvió un objeto sf.")
+      }
 
-    if (is.na(sf::st_crs(shp))) {
-      stop("La capa no tiene sistema de coordenadas definido.")
-    }
+      if (nrow(shp) == 0) {
+        stop("El Shapefile no contiene registros.")
+      }
 
-    carpeta_temp <- tempfile("shp_")
+      if (is.na(sf::st_crs(shp))) {
+        stop("La capa no tiene sistema de coordenadas definido.")
+      }
 
-    dir.create(
-      carpeta_temp,
-      recursive = TRUE,
-      showWarnings = FALSE
-    )
+      carpeta_temp <- tempfile("shp_")
 
-    on.exit(
-      unlink(carpeta_temp, recursive = TRUE),
-      add = TRUE
-    )
+      dir.create(
+        carpeta_temp,
+        recursive = TRUE,
+        showWarnings = FALSE
+      )
 
-    nombre_shp <- "Estaciones_de_muestreo_de_fauna_terrestre"
+      on.exit(
+        unlink(carpeta_temp, recursive = TRUE),
+        add = TRUE
+      )
 
-    ruta_shp <- file.path(
-      carpeta_temp,
-      paste0(nombre_shp, ".shp")
-    )
+      nombre_shp <- "Estaciones_de_muestreo_de_fauna_terrestre"
 
-    sf::st_write(
-      shp,
-      dsn = ruta_shp,
-      driver = "ESRI Shapefile",
-      delete_layer = TRUE,
-      quiet = TRUE
-    )
+      ruta_shp <- file.path(
+        carpeta_temp,
+        paste0(nombre_shp, ".shp")
+      )
 
-    archivos <- list.files(
-      carpeta_temp,
-      full.names = TRUE
-    )
+      sf::st_write(
+        shp,
+        dsn = ruta_shp,
+        driver = "ESRI Shapefile",
+        delete_layer = TRUE,
+        quiet = TRUE
+      )
 
-    if (length(archivos) == 0) {
-      stop("st_write() no generó ningún archivo.")
-    }
+      archivos <- list.files(
+        carpeta_temp,
+        full.names = TRUE
+      )
 
-    print("ARCHIVOS GENERADOS:")
-    print(archivos)
+      if (length(archivos) == 0) {
+        stop("st_write() no generó ningún archivo.")
+      }
 
-    # Debe existir al menos el .shp
-    if (!file.exists(ruta_shp)) {
-      stop(
-        paste(
-          "No se encontró el archivo SHP:",
-          ruta_shp
+      print("ARCHIVOS GENERADOS:")
+      print(archivos)
+
+      # Debe existir al menos el .shp
+      if (!file.exists(ruta_shp)) {
+        stop(
+          paste(
+            "No se encontró el archivo SHP:",
+            ruta_shp
+          )
         )
+      }
+
+      zip_temp <- tempfile(
+        pattern = "fauna_",
+        fileext = ".zip"
       )
-    }
 
-    zip_temp <- tempfile(
-      pattern = "fauna_",
-      fileext = ".zip"
-    )
+      zip::zipr(
+        zipfile = zip_temp,
+        files = archivos,
+        include_directories = FALSE
+      )
 
-    zip::zipr(
-      zipfile = zip_temp,
-      files = archivos,
-      include_directories = FALSE
-    )
+      if (!file.exists(zip_temp)) {
 
-    if (!file.exists(zip_temp)) {
-
-      stop(
-        paste(
-          "No se pudo crear el archivo ZIP.",
-          "Ruta esperada:",
-          zip_temp
+        stop(
+          paste(
+            "No se pudo crear el archivo ZIP.",
+            "Ruta esperada:",
+            zip_temp
+          )
         )
-      )
-    }
+      }
 
-    tamano_zip <- file.info(zip_temp)$size
+      tamano_zip <- file.info(zip_temp)$size
 
-    message("ZIP creado:")
-    message(zip_temp)
+      message("ZIP creado:")
+      message(zip_temp)
 
-    message("Tamaño:")
-    message(tamano_zip)
+      message("Tamaño:")
+      message(tamano_zip)
 
-    if (is.na(tamano_zip) || tamano_zip <= 0) {
+      if (is.na(tamano_zip) || tamano_zip <= 0) {
 
-      stop(
-        "El archivo ZIP fue creado pero está vacío."
-      )
-    }
-
-    resultado <- file.copy(
-      from = zip_temp,
-      to = file,
-      overwrite = TRUE
-    )
-
-    if (!resultado) {
-
-      stop(
-        paste(
-          "No se pudo copiar el ZIP al archivo de descarga:",
-          file
+        stop(
+          "El archivo ZIP fue creado pero está vacío."
         )
+      }
+
+      resultado <- file.copy(
+        from = zip_temp,
+        to = file,
+        overwrite = TRUE
       )
+
+      if (!resultado) {
+
+        stop(
+          paste(
+            "No se pudo copiar el ZIP al archivo de descarga:",
+            file
+          )
+        )
+      }
+
+      if (!file.exists(file)) {
+
+        stop(
+          "Shiny no recibió correctamente el archivo ZIP."
+        )
+      }
+
+      tamano_final <- file.info(file)$size
+
+      message("DESCARGA SHP")
+      message("SHP: ", ruta_shp)
+      message("ZIP temporal: ", zip_temp)
+      message("ZIP final: ", file)
+      message("Tamaño ZIP: ", file.info(file)$size, " bytes")
+      message("Archivos incluidos:")
+      print(archivos)
+
+      })
     }
-
-    if (!file.exists(file)) {
-
-      stop(
-        "Shiny no recibió correctamente el archivo ZIP."
-      )
-    }
-
-    tamano_final <- file.info(file)$size
-
-    message("DESCARGA SHP")
-    message("SHP: ", ruta_shp)
-    message("ZIP temporal: ", zip_temp)
-    message("ZIP final: ", file)
-    message("Tamaño ZIP: ", file.info(file)$size, " bytes")
-    message("Archivos incluidos:")
-    print(archivos)
-  }
-)
+  )
 }
