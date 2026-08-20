@@ -390,7 +390,7 @@ server <- function(input, output, session) {
       dplyr::filter(
         trimws(Region) == trimws(input$region_mapa)
       ) %>%
-      sf::st_transform(region, 4326)
+      sf::st_transform(4326)
     
     comuna <- comunas_chile %>%
       dplyr::filter(
