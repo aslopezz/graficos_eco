@@ -366,14 +366,6 @@ crear_mapa_chile <- function(
       color = "#999999",
       linewidth = 0.1
     ) +
-    # Límites comunales de la región seleccionada
-    #ggplot2::geom_sf(
-    #  data = comunas,
-    #  fill = NA,
-    #  color = "#A6A6A6",
-    #  linewidth = 0.25
-    #) +
-    # Comuna seleccionada
     ggplot2::geom_sf(
       data = comuna_sel,
       fill = "#ffbb00",
@@ -465,14 +457,6 @@ crear_mapa_region <- function(
       fill = NA,
       color = "#000000",
       linewidth = 0.3
-    ) +
-    
-    ggplot2::labs(
-      title = region_seleccionada,
-      subtitle = paste(
-        "Comuna de ",
-        comuna_seleccionada
-      )
     ) +
     
     ggplot2::theme_void() +
