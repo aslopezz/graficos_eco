@@ -6,3 +6,4 @@ rsconnect/*
 .Rproj.user
 .Data
 .RDataTm*
+.RData
