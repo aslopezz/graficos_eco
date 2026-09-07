@@ -13,6 +13,7 @@ ui <- navbarPage(
       hr(),
       h4("Parámetros Analíticos"),
       # numericInput("n_perm", "Permutaciones (acumulación", value=500, min=100, max=1000, step=1),
+      # ESTO AHORA NO HACE NADA
       numericInput(
         "k_grupos",
         "Grupos (k) para dendogramas y SIMPER",
