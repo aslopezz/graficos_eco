@@ -300,11 +300,11 @@ server <- function(input, output, session) {
     }
   )
   
-  comunas <- st_read("datos/comunas.gpkg", quiet = TRUE)
-  regiones <- st_read("datos/regiones.gpkg", quiet = TRUE)
+  # comunas <- st_read("datos/comunas.gpkg", quiet = TRUE)
+  # regiones <- st_read("datos/regiones.gpkg", quiet = TRUE)
   
-  saveRDS(comunas, "datos/comunas.rds")
-  saveRDS(regiones, "datos/regiones.rds")
+  # saveRDS(comunas, "datos/comunas.rds")
+  # saveRDS(regiones, "datos/regiones.rds")
   
   comunas_chile <- readRDS("./datos/comunas.rds")
   
