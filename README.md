@@ -3,6 +3,7 @@
 link app: [https://registros.shinyapps.io/app_registros/](https://registros.shinyapps.io/app_registros/)
 link connect clout: [https://ecorestaura-graficos.share.connect.posit.cloud/](https://ecorestaura-graficos.share.connect.posit.cloud/)
 
+```text
 app/
 ├── app.R
 ├── global.R
@@ -15,4 +16,4 @@ app/
     ├── 04_graficos.R > graficar, plot_curva_acumulacion
     ├── 05_curvas_acumulacion.R > calcular_curva_acumulacion
     └── 06_analisis_espacial.R > preparar_datos_espaciales, crear_shp_terreno
-    
+```
