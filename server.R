@@ -300,8 +300,15 @@ server <- function(input, output, session) {
     }
   )
   
-  comunas_chile <- sf::st_read("./datos/comunas.gpkg", quiet = TRUE)
-  regiones_chile <- sf::st_read("./datos/regiones.gpkg", quiet = TRUE) %>%
+  comunas <- st_read("datos/comunas.gpkg", quiet = TRUE)
+  regiones <- st_read("datos/regiones.gpkg", quiet = TRUE)
+  
+  saveRDS(comunas, "datos/comunas.rds")
+  saveRDS(regiones, "datos/regiones.rds")
+  
+  comunas_chile <- readRDS("./datos/comunas.rds")
+  
+  regiones_chile <- readRDS("./datos/regiones.rds") %>%
     dplyr::filter(
       trimws(Region) != "Zona sin demarcar"
     )
