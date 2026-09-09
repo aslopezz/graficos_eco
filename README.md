@@ -1,6 +1,7 @@
 
 
 link app: [https://registros.shinyapps.io/app_registros/](https://registros.shinyapps.io/app_registros/)
+link connect clout: [https://ecorestaura-graficos.share.connect.posit.cloud/](https://ecorestaura-graficos.share.connect.posit.cloud/)
 
 app/
 ├── app.R
