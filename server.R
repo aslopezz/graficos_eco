@@ -305,7 +305,58 @@ server <- function(input, output, session) {
   
   # saveRDS(comunas, "datos/comunas.rds")
   # saveRDS(regiones, "datos/regiones.rds")
-  
+
+  # Dendograma
+  # Dendograma de especies (Bray-Curtis / Jaccard) 
+  matriz_especies <- reactive({
+    req(datos_reactivos())
+    tipo <- if (input$metodo_dist_especies == "jaccard") "presencia" else "abundancia"
+    construir_matriz_especies(df = datos_reactivos(), tipo = tipo)
+  })
+
+  hc_especies <- eventReactive(input$run_dendo_especies, {
+    validate(
+      need(nrow(matriz_especies()) > 1,
+          "Se necesitan al menos 2 especies con registros para construir un dendograma."),
+      need(ncol(matriz_especies()) > 1,
+          "Se necesitan al menos 2 estaciones distintas en el terreno.")
+    )
+    calcular_dendograma_especies(
+      matriz = matriz_especies(),
+      metodo_dist = input$metodo_dist_especies,
+      metodo_clust = input$metodo_clust_especies
+    )
+  })
+
+  grafico_dendo_especies <- reactive({
+    req(hc_especies())
+    plot_dendograma_especies(
+      hc = hc_especies(),
+      k = input$k_grupos,
+      metodo_dist = input$metodo_dist_especies
+    )
+  })
+
+  output$graf_dendo_especies <- renderPlot({
+    grafico_dendo_especies()
+  })
+
+  output$download_dendo_especies <- downloadHandler(
+    filename = function() paste0("Dendograma_Especies_", input$metodo_dist_especies, ".png"),
+    content = function(file) {
+      ggsave(
+        filename = file,
+        plot = grafico_dendo_especies(),
+        device = "png",
+        width = 9,
+        height = 7,
+        units = "in",
+        dpi = 300,
+        bg = "white"
+      )
+    }
+  )
+  # Imágenes para mapas
   comunas_chile <- readRDS("./datos/comunas.rds")
   
   regiones_chile <- readRDS("./datos/regiones.rds") %>%
@@ -384,7 +435,6 @@ server <- function(input, output, session) {
       
     })
   })
-  
   
   output$mapa_espacial <- renderPlot({
     req(datos_espaciales())

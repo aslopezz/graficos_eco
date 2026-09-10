@@ -123,7 +123,7 @@ preparar_datos_espaciales <- function(df, huso, fecha_ini, fecha_ter) {
     }
   }
   # Guardar el huso seleccionado en cada registro
-    df$HUSO <- huso
+  df$HUSO <- huso
   # UTM
   epsg <- switch(huso, "18S" = 32718, "19S" = 32719, stop(paste("Huso inválido:", huso)))
   

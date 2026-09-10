@@ -10,27 +10,6 @@ ui <- navbarPage(
         buttonLabel = "Examinar…",
         placeholder = "Ningún archivo seleccionado"
       ),
-      hr(),
-      h4("Parámetros Analíticos"),
-      # numericInput("n_perm", "Permutaciones (acumulación", value=500, min=100, max=1000, step=1),
-      # ESTO AHORA NO HACE NADA
-      numericInput(
-        "k_grupos",
-        "Grupos (k) para dendogramas y SIMPER",
-        value = 5,
-        min = 2,
-        max = 10,
-        step = 1
-      ),
-      # input$n_perm
-      # input$k_grupos
-      hr(),
-      actionButton(
-        "run_analisis",
-        "Ejecutar análisis",
-        icon = icon("play"),
-        class = "btn-primary w-100"
-      )
     ),
     mainPanel(
       uiOutput("resumen_carga"),
@@ -38,8 +17,7 @@ ui <- navbarPage(
       DTOutput("tabla_resultados")
     )
   )),
-  tabPanel(
-    "Gráficos taxonómicos",
+  tabPanel( "Gráficos taxonómicos",
     sidebarLayout(
       sidebarPanel(
         h5("Configuración"),
@@ -97,8 +75,7 @@ ui <- navbarPage(
       ),
     )
   ),
-  tabPanel(
-    "Diversidad y abundancia",
+  tabPanel("Diversidad y abundancia",
     sidebarLayout(
       sidebarPanel(
         h5("Configuración"),
@@ -147,8 +124,7 @@ ui <- navbarPage(
       br(),
     )
   )),
-  tabPanel(
-    "Curva de acumulación de especies",
+  tabPanel("Curva de acumulación de especies",
     sidebarLayout(
       sidebarPanel(
         h5("Configuración"),
@@ -241,8 +217,50 @@ ui <- navbarPage(
       h4("Vista previa espacial"),
       plotOutput("mapa_espacial", height = "600px")
     )
-  ))
-  # tabPanel("Estructura comunitaria", h3("Sección en construcción")),
+  )),
+  tabPanel("Similitud entre especies",
+    sidebarLayout(
+      sidebarPanel(
+        h5("Configuración del dendograma"),
+        radioButtons(
+          "metodo_dist_especies",
+          "Método de distancia:",
+          choices = c("Bray-Curtis (abundancia)" = "bray", "Jaccard (presencia/ausencia)" = "jaccard"),
+          selected = "bray"
+        ),
+        selectInput(
+          "metodo_clust_especies",
+          "Método de aglomeración:",
+          choices = c("Average" = "average", "Ward" = "ward.D2",
+                      "Complete" = "complete", "Single" = "single")
+        ),
+        hr(),
+        h4("Parámetros Analíticos"),
+        # numericInput("n_perm", "Permutaciones (acumulación", value=500, min=100, max=1000, step=1),
+        numericInput(
+          "k_grupos",
+          "Grupos (k) para dendogramas", # y SIMPER ???
+          value = 5,
+          min = 2,
+          max = 10,
+          step = 1
+        ),
+        # input$n_perm
+        # input$k_grupos
+        hr(),
+        actionButton(
+          "run_dendo_especies",
+          "Generar dendograma",
+          icon = icon("play"),
+          class = "btn-primary w-100"
+        ),
+        downloadButton("download_dendo_especies", "Descargar dendograma", class = "btn-success w-100 mt-3")
+      ),
+      mainPanel(
+        plotOutput("graf_dendo_especies", height = "600px")
+      )
+    )
+  )
   # tabPanel("Análisis de similitud", h3("Sección en construcción")),
   # tabPanel("Descargar Darwin Core", h3("Sección en construcción"))
 )
