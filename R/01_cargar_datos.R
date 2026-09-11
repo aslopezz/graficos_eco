@@ -1,3 +1,4 @@
+#' @param df data.frame ya procesado (con ESTACION, ESPECIE, CANTIDAD)
 procesar_datos_entrada <- function(df) {
   # limpiar espacios en nombres de columna
   names(df) <- trimws(names(df))

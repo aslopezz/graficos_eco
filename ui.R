@@ -222,6 +222,7 @@ ui <- navbarPage(
     sidebarLayout(
       sidebarPanel(
         h5("Configuración del dendograma"),
+        uiOutput("filtro_clase_especies_ui"),
         radioButtons(
           "metodo_dist_especies",
           "Método de distancia:",

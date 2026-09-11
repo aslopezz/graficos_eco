@@ -32,4 +32,4 @@ source("R/03_indices_diversidad.R")
 source("R/04_graficos.R")
 source("R/05_curvas_acumulacion.R")
 source("R/06_analisis_espacial.R") 
-
+source("R/07_dendogramas.R") 

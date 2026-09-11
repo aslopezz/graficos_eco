@@ -1,88 +1,37 @@
-#' Construye la matriz ESPECIE x ESTACION
-#'
-#' @param df data.frame ya procesado (con ESTACION, ESPECIE, CANTIDAD)
-#' @param tipo "abundancia" (usa CANTIDAD, para Bray-Curtis) o
-#'             "presencia" (0/1, para Jaccard)
-#'
-#' @return matrix con ESPECIE como filas, ESTACION como columnas
-construir_matriz_especies <- function(df, tipo = "abundancia") {
-
-  df_valido <- df %>%
-    dplyr::filter(
-      !is.na(ESTACION), trimws(ESTACION) != "",
-      !is.na(ESPECIE), trimws(ESPECIE) != ""
-    )
-
-  if (nrow(df_valido) == 0) {
-    stop("No hay registros válidos con ESTACION y ESPECIE.")
-  }
-
-  df_agg <- df_valido %>%
-    dplyr::group_by(ESPECIE, ESTACION) %>%
-    dplyr::summarise(ABUNDANCIA = sum(as.numeric(CANTIDAD), na.rm = TRUE), .groups = "drop")
-
-  matriz <- df_agg %>%
-    tidyr::pivot_wider(
-      names_from = ESTACION,
-      values_from = ABUNDANCIA,
-      values_fill = 0
-    ) %>%
-    tibble::column_to_rownames("ESPECIE") %>%
-    as.matrix()
-
-  if (tipo == "presencia") {
-    matriz <- (matriz > 0) * 1
-  }
-
-  matriz
-}
-
-#' Calcula el clustering jerárquico de especies (Bray-Curtis o Jaccard)
-#'
-#' @param matriz salida de construir_matriz_especies() [ESPECIE x ESTACION]
-#' @param metodo_dist "bray" o "jaccard"
-#' @param metodo_clust "average","complete","ward.D2","single"
-#'
-#' @return objeto hclust
+# calcula el clustering jerárquico de especies (Bray-Curtis o Jaccard)
 calcular_dendograma_especies <- function(matriz, metodo_dist = "bray", metodo_clust = "average") {
-
+  
   filas_validas <- rowSums(matriz) > 0
   matriz <- matriz[filas_validas, , drop = FALSE]
-
+  
   if (nrow(matriz) < 2) {
     stop("Se necesitan al menos 2 especies con registros para construir un dendograma.")
   }
-
+  
   if (ncol(matriz) < 2) {
     stop("Se necesitan al menos 2 estaciones distintas en el terreno para comparar especies.")
   }
-
+  
   binario <- metodo_dist == "jaccard"
-
+  
   distancia <- vegan::vegdist(matriz, method = metodo_dist, binary = binario)
   stats::hclust(distancia, method = metodo_clust)
 }
 
-#' Dibuja el dendograma de especies coloreado por corte en k grupos
-#'
-#' @param hc objeto hclust
-#' @param k número de grupos a resaltar
-#' @param metodo_dist usado solo para el subtítulo
-#'
-#' @return objeto ggplot
+# dibuja el dendograma de especies coloreado por corte en k grupos
 plot_dendograma_especies <- function(hc, k = 3, metodo_dist = "bray") {
-
+  
   dend_data <- ggdendro::dendro_data(hc)
-
+  
   grupos <- stats::cutree(hc, k = k)
   grupos_df <- data.frame(label = names(grupos), grupo = factor(grupos))
-
+  
   hojas <- dend_data$labels %>%
     dplyr::left_join(grupos_df, by = "label")
-
+  
   y_max <- max(dend_data$segments$y)
   etiqueta_metodo <- ifelse(metodo_dist == "bray", "Bray-Curtis", "Jaccard")
-
+  
   ggplot2::ggplot() +
     ggplot2::geom_segment(
       data = dend_data$segments,

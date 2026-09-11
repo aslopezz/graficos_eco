@@ -310,8 +310,22 @@ server <- function(input, output, session) {
   # Dendograma de especies (Bray-Curtis / Jaccard) 
   matriz_especies <- reactive({
     req(datos_reactivos())
+    req(length(input$filtro_clase_especies) > 0)
+
+    seleccion <- input$filtro_clase_especies
+
+    # si el usuario selecciona "Todas" junto con clases específicas, "Todas" gana
+    if ("Todas" %in% seleccion) {
+      seleccion <- "Todas"
+    }
+
     tipo <- if (input$metodo_dist_especies == "jaccard") "presencia" else "abundancia"
-    construir_matriz_especies(df = datos_reactivos(), tipo = tipo)
+
+    construir_matriz_especies(
+      df = datos_reactivos(),
+      tipo = tipo,
+      filtro_clase = seleccion
+    )
   })
 
   hc_especies <- eventReactive(input$run_dendo_especies, {
@@ -356,6 +370,19 @@ server <- function(input, output, session) {
       )
     }
   )
+
+  output$filtro_clase_especies_ui <- renderUI({
+    req(datos_reactivos())
+    clases <- sort(unique(datos_reactivos()$CLASE))
+    selectizeInput(
+      "filtro_clase_especies",
+      "Clase(s) a analizar:",
+      choices = c("Todas", clases),
+      selected = "Todas",
+      multiple = TRUE,
+      options = list(plugins = list("remove_button"))
+    )
+  })
   # Imágenes para mapas
   comunas_chile <- readRDS("./datos/comunas.rds")
   
