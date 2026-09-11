@@ -1,3 +1,40 @@
+construir_matriz_especies <- function(df, tipo = "abundancia", filtro_clase="Todas") {
+  
+  if (!"Todas" %in% filtro_clase) {
+    df <- df %>% 
+      dplyr::filter(CLASE %in% filtro_clase)
+  }
+  
+  df_valido <- df %>%
+    dplyr::filter(
+      !is.na(ESTACION), trimws(ESTACION) != "",
+      !is.na(ESPECIE), trimws(ESPECIE) != ""
+    )
+  
+  if (nrow(df_valido) == 0) {
+    stop("No hay registros válidos con ESTACION y ESPECIE.")
+  }
+  
+  df_agg <- df_valido %>%
+    dplyr::group_by(ESPECIE, ESTACION) %>%
+    dplyr::summarise(ABUNDANCIA = sum(as.numeric(CANTIDAD), na.rm = TRUE), .groups = "drop")
+  
+  matriz <- df_agg %>%
+    tidyr::pivot_wider(
+      names_from = ESTACION,
+      values_from = ABUNDANCIA,
+      values_fill = 0
+    ) %>%
+    tibble::column_to_rownames("ESPECIE") %>%
+    as.matrix()
+  
+  if (tipo == "presencia") {
+    matriz <- (matriz > 0) * 1
+  }
+  
+  matriz
+}
+
 # calcula el clustering jerárquico de especies (Bray-Curtis o Jaccard)
 calcular_dendograma_especies <- function(matriz, metodo_dist = "bray", metodo_clust = "average") {
   
