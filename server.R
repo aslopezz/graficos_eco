@@ -1,5 +1,10 @@
 server <- function(input, output, session) {
-  # carga de datos
+  
+  # =========================================================================
+  # 1. CARGA Y RESUMEN DE DATOS
+  #    -> 01_cargar_datos.R (procesar_datos_entrada)
+  # =========================================================================
+  
   datos_reactivos <- reactive({
     req(input$archivo_csv)
     
@@ -10,23 +15,9 @@ server <- function(input, output, session) {
       encoding = "UTF-8",
       check.names = FALSE
     )
-    # 01_cargar_datos.R
     procesar_datos_entrada(df)
   })
   
-  # calcula los índices para todo el conjunto de datos
-  resultado_indices <- eventReactive(input$run_diversidad, {
-    df <- datos_reactivos()
-    calcular_indices(df) # en diversidad.R
-  })
-  
-  resultado_tabla <- eventReactive(input$run_diversidad, {
-    df <- datos_reactivos()
-    # en diversidad.R
-    tabla_riqueza_abundancia(df, input$nivel_riqueza)
-  })
-  
-  # resumen de carga
   output$resumen_carga <- renderUI({
     req(datos_reactivos())
     df <- datos_reactivos()
@@ -43,7 +34,6 @@ server <- function(input, output, session) {
     )
   })
   
-  # tabla de datos
   output$tabla_resultados <- renderDT({
     datos_reactivos()
   }, options = list(
@@ -52,7 +42,11 @@ server <- function(input, output, session) {
     pageLength = 15
   ), rownames = FALSE)
   
-  # filtros dinámicos
+  
+  # =========================================================================
+  # 2. FILTROS DINÁMICOS Y DATOS FILTRADOS PARA GRÁFICOS
+  # =========================================================================
+  
   output$filtro_protocolo_ui <- renderUI({
     req(datos_reactivos())
     protocolos <- sort(unique(datos_reactivos()[["PROTOCOLO MUESTREO"]]))
@@ -75,7 +69,6 @@ server <- function(input, output, session) {
     )
   })
   
-  # datos filtrados para gráficos
   datos_graficos <- eventReactive(input$run_graficos, {
     df <- datos_reactivos()
     if (!is.null(input$filtro_clase) &&
@@ -86,13 +79,29 @@ server <- function(input, output, session) {
       df <- df[df[["PROTOCOLO MUESTREO"]] == input$filtro_protocolo, ]
     df
   })
-  # Resultados tabla indice
+  
+  
+  # =========================================================================
+  # 3. ÍNDICES DE DIVERSIDAD
+  #    -> 03_indices_diversidad.R (calcular_indices, tabla_riqueza_abundancia)
+  # =========================================================================
+  
+  resultado_indices <- eventReactive(input$run_diversidad, {
+    df <- datos_reactivos()
+    calcular_indices(df)
+  })
+  
+  resultado_tabla <- eventReactive(input$run_diversidad, {
+    df <- datos_reactivos()
+    tabla_riqueza_abundancia(df, input$nivel_riqueza)
+  })
+  
   output$tabla_indices <- renderDT({
     req(resultado_indices())
     datatable(resultado_indices()$indices,
               options = list(pageLength = 10, scrollX = TRUE))
   })
-  # Resultados tabla abundancia
+  
   output$tabla_abundancia <- renderDT({
     req(resultado_tabla())
     datatable(
@@ -102,44 +111,20 @@ server <- function(input, output, session) {
     )
   })
   
-  # para curva de acumulación de especies
-  datos_acumulacion <- eventReactive(input$run_acumulacion, {
-    req(datos_reactivos())
-    
-    withProgress(message = "Calculando curva...", value = 2, {
-      df <- datos_reactivos()
-      df$MUESTRA <- paste(df$FECHA, df$ESTACION, df$`NOMBRE METODOLOGIA`, sep = "_")
-      
-      matriz <- xtabs(CANTIDAD ~ MUESTRA + ESPECIE, data = df)
-      
-      matriz <- as.matrix(matriz)
-      # en curvas.R
-      curva <- calcular_curva_acumulacion(
-        matriz = matriz,
-        estimador = input$estimador,
-        nperm = input$n_perm_acum
-      )
-      
-      incProgress(1, detail = "Finalizado")
-      curva
-    })
-  })
   
-  # output curva de acumulación de especies
-  output$curva_acumulacion <- renderPlot({
-    req(datos_acumulacion())
-    plot_curva_acumulacion(datos_acumulacion())
-  })
+  # =========================================================================
+  # 4. GRÁFICOS GENERALES (por estación, metodología, orden, clase)
+  #    -> 04_graficos.R (graficar)
+  # =========================================================================
   
   grafico_estacion <- reactive({
     req(datos_graficos())
-    # 04_graficos.R
     graficar(datos_graficos(),
-                  "ESTACION",
-                  "",
-                  input$tipo_grafico,
-                  input$metricas,
-                  pal_set2)
+             "ESTACION",
+             "",
+             input$tipo_grafico,
+             input$metricas,
+             pal_set2)
   })
   
   output$graf_estacion <- renderPlot({
@@ -161,21 +146,21 @@ server <- function(input, output, session) {
   output$graf_orden <- renderPlot({
     req(datos_graficos())
     graficar(datos_graficos(),
-                  "ORDEN",
-                  "",
-                  input$tipo_grafico,
-                  input$metricas,
-                  pal_pastel1)
+             "ORDEN",
+             "",
+             input$tipo_grafico,
+             input$metricas,
+             pal_pastel1)
   })
   
   output$graf_clase <- renderPlot({
     req(datos_graficos())
     graficar(datos_graficos(),
-                  "CLASE",
-                  "",
-                  input$tipo_grafico,
-                  input$metricas,
-                  pal_pastel1)
+             "CLASE",
+             "",
+             input$tipo_grafico,
+             input$metricas,
+             pal_pastel1)
   })
   
   output$download_estacion <- downloadHandler(
@@ -196,11 +181,43 @@ server <- function(input, output, session) {
     }
   )
   
+  
+  # =========================================================================
+  # 5. CURVA DE ACUMULACIÓN DE ESPECIES
+  #    -> 05_curvas_acumulacion.R (calcular_curva_acumulacion)
+  #    -> 04_graficos.R (plot_curva_acumulacion)
+  # =========================================================================
+  
+  datos_acumulacion <- eventReactive(input$run_acumulacion, {
+    req(datos_reactivos())
+    
+    withProgress(message = "Calculando curva...", value = 2, {
+      df <- datos_reactivos()
+      df$MUESTRA <- paste(df$FECHA, df$ESTACION, df$`NOMBRE METODOLOGIA`, sep = "_")
+      
+      matriz <- xtabs(CANTIDAD ~ MUESTRA + ESPECIE, data = df)
+      matriz <- as.matrix(matriz)
+      
+      curva <- calcular_curva_acumulacion(
+        matriz = matriz,
+        estimador = input$estimador,
+        nperm = input$n_perm_acum
+      )
+      
+      incProgress(1, detail = "Finalizado")
+      curva
+    })
+  })
+  
+  output$curva_acumulacion <- renderPlot({
+    req(datos_acumulacion())
+    plot_curva_acumulacion(datos_acumulacion())
+  })
+  
   output$download_curva <- downloadHandler(
     filename = function() {
       "curva_acumulacion.png"
     },
-    
     content = function(file) {
       ggsave(
         filename = file,
@@ -212,35 +229,52 @@ server <- function(input, output, session) {
       )
     }
   )
-
-  # Dendograma
-  # Dendograma de especies (Bray-Curtis / Jaccard) 
+  
+  # =========================================================================
+  # 6. DENDOGRAMA DE ESPECIES (Bray-Curtis / Jaccard)
+  #   -> 07.dendogramas.R ( construir_matriz_especies , calcular_dendograma_especies
+  #       plot_dendograma_especies ) Considerar mover el plot?
+  # =========================================================================
+  
+  output$filtro_clase_especies_ui <- renderUI({
+    req(datos_reactivos())
+    clases <- sort(unique(datos_reactivos()$CLASE))
+    selectizeInput(
+      "filtro_clase_especies",
+      "Clase(s) a analizar:",
+      choices = c("Todas", clases),
+      selected = "Todas",
+      multiple = TRUE,
+      options = list(plugins = list("remove_button"))
+    )
+  })
+  
   matriz_especies <- reactive({
     req(datos_reactivos())
     req(length(input$filtro_clase_especies) > 0)
-
+    
     seleccion <- input$filtro_clase_especies
-
+    
     # si el usuario selecciona "Todas" junto con clases específicas, "Todas" gana
     if ("Todas" %in% seleccion) {
       seleccion <- "Todas"
     }
-
+    
     tipo <- if (input$metodo_dist_especies == "jaccard") "presencia" else "abundancia"
-
+    
     construir_matriz_especies(
       df = datos_reactivos(),
       tipo = tipo,
       filtro_clase = seleccion
     )
   })
-
+  
   hc_especies <- eventReactive(input$run_dendo_especies, {
     validate(
       need(nrow(matriz_especies()) > 1,
-          "Se necesitan al menos 2 especies con registros para construir un dendograma."),
+           "Se necesitan al menos 2 especies con registros para construir un dendograma."),
       need(ncol(matriz_especies()) > 1,
-          "Se necesitan al menos 2 estaciones distintas en el terreno.")
+           "Se necesitan al menos 2 estaciones distintas en el terreno.")
     )
     calcular_dendograma_especies(
       matriz = matriz_especies(),
@@ -248,7 +282,7 @@ server <- function(input, output, session) {
       metodo_clust = input$metodo_clust_especies
     )
   })
-
+  
   grafico_dendo_especies <- reactive({
     req(hc_especies())
     plot_dendograma_especies(
@@ -257,11 +291,11 @@ server <- function(input, output, session) {
       metodo_dist = input$metodo_dist_especies
     )
   })
-
+  
   output$graf_dendo_especies <- renderPlot({
     grafico_dendo_especies()
   })
-
+  
   output$download_dendo_especies <- downloadHandler(
     filename = function() paste0("Dendograma_Especies_", input$metodo_dist_especies, ".png"),
     content = function(file) {
@@ -277,36 +311,20 @@ server <- function(input, output, session) {
       )
     }
   )
-
-  output$filtro_clase_especies_ui <- renderUI({
-    req(datos_reactivos())
-    clases <- sort(unique(datos_reactivos()$CLASE))
-    selectizeInput(
-      "filtro_clase_especies",
-      "Clase(s) a analizar:",
-      choices = c("Todas", clases),
-      selected = "Todas",
-      multiple = TRUE,
-      options = list(plugins = list("remove_button"))
-    )
-  })
-  # Imágenes para mapas
-  comunas_chile <- readRDS("./datos/comunas.rds")
   
-  regiones_chile <- readRDS("./datos/regiones.rds") %>%
-    dplyr::filter(
-      trimws(Region) != "Zona sin demarcar"
-    )
-  
+  # =========================================================================
+  # 7. ANÁLISIS ESPACIAL Y MAPAS
+  #    -> 06_analisis_espacial.R (preparar_datos_espaciales, crear_shp_terreno)
+  # =========================================================================
   observe({
     regiones <- regiones_chile %>%
-    sf::st_drop_geometry() %>%
-    dplyr::pull(Region) %>%
-    as.character() %>%
-    trimws() %>%
-    unique() %>%
-    sort()
-  
+      sf::st_drop_geometry() %>%
+      dplyr::pull(Region) %>%
+      as.character() %>%
+      trimws() %>%
+      unique() %>%
+      sort()
+    
     updateSelectInput(
       session,
       "region_mapa",
@@ -338,7 +356,6 @@ server <- function(input, output, session) {
                       })
   })
   
-  
   datos_espaciales <- eventReactive(input$run_espacial, {
     req(datos_reactivos())
     req(input$huso_utm)
@@ -366,7 +383,6 @@ server <- function(input, output, session) {
       incProgress(1, detail = "Finalizado")
       
       capa
-      
     })
   })
   
@@ -427,7 +443,6 @@ server <- function(input, output, session) {
         )
     }
     
-    
     if (nrow(comuna) > 0) {
       bbox <- sf::st_bbox(comuna)
       
@@ -469,9 +484,8 @@ server <- function(input, output, session) {
         plot.subtitle = element_text(hjust = 0.5, size = 11),
         legend.position = "bottom"
       )
-    
   })
-
+  
   output$download_mapa_chile <- downloadHandler(
     filename = function() {
       paste0(
@@ -482,7 +496,6 @@ server <- function(input, output, session) {
         ".png"
       )
     },
-    
     content = function(file) {
       withProgress(message = "Generando imagen de chile...", value = 0, {
         p <- crear_mapa_chile(
@@ -491,7 +504,7 @@ server <- function(input, output, session) {
           region_seleccionada = input$region_mapa,
           comuna_seleccionada = input$comuna_mapa
         )
-
+        
         ggplot2::ggsave(
           filename = file,
           plot = p,
@@ -501,11 +514,10 @@ server <- function(input, output, session) {
           dpi = 300,
           bg = "white"
         )
-
       })
     }
   )
-
+  
   output$download_mapa_region <- downloadHandler(
     filename = function() {
       paste0(
@@ -516,16 +528,14 @@ server <- function(input, output, session) {
         ".png"
       )
     },
-
     content = function(file) {
-      withProgress(message="Generando mapa de la región...", value = 20 ,{
-
+      withProgress(message = "Generando mapa de la región...", value = 20, {
         p <- crear_mapa_region(
           comunas_chile = comunas_chile,
           region_seleccionada = input$region_mapa,
           comuna_seleccionada = input$comuna_mapa
         )
-
+        
         ggplot2::ggsave(
           filename = file,
           plot = p,
@@ -535,13 +545,11 @@ server <- function(input, output, session) {
           dpi = 300,
           bg = "white"
         )
-
       })
     }
   )
   
   output$download_shp <- downloadHandler(
-
     filename = function() {
       paste0(
         "Estaciones_de_muestreo_de_fauna_terrestre_",
@@ -549,168 +557,162 @@ server <- function(input, output, session) {
         ".zip"
       )
     },
-
     content = function(file) {
       withProgress(message = "Generando Shapefile...", value = 0, {
-
-      req(datos_espaciales())
-      req(input$region_mapa)
-      req(input$comuna_mapa)
-      req(input$huso_utm)
-      req(input$fecha_ini_campana)
-      req(input$fecha_ter_campana)
-
-      capa <- datos_espaciales()
-
-      if (!inherits(capa, "sf")) {
-        stop("La capa espacial no es un objeto sf.")
-      }
-
-      if (nrow(capa) == 0) {
-        stop("La capa espacial está vacía.")
-      }
-
-      shp <- crear_shp_terreno(
-        capa = capa,
-        region = input$region_mapa,
-        comuna = input$comuna_mapa,
-        fecha_ini = input$fecha_ini_campana,
-        fecha_ter = input$fecha_ter_campana,
-        huso = input$huso_utm
-      )
-
-      if (!inherits(shp, "sf")) {
-        stop("crear_shp_terreno() no devolvió un objeto sf.")
-      }
-
-      if (nrow(shp) == 0) {
-        stop("El Shapefile no contiene registros.")
-      }
-
-      if (is.na(sf::st_crs(shp))) {
-        stop("La capa no tiene sistema de coordenadas definido.")
-      }
-
-      carpeta_temp <- tempfile("shp_")
-
-      dir.create(
-        carpeta_temp,
-        recursive = TRUE,
-        showWarnings = FALSE
-      )
-
-      on.exit(
-        unlink(carpeta_temp, recursive = TRUE),
-        add = TRUE
-      )
-
-      nombre_shp <- "Estaciones_de_muestreo_de_fauna_terrestre"
-
-      ruta_shp <- file.path(
-        carpeta_temp,
-        paste0(nombre_shp, ".shp")
-      )
-
-      sf::st_write(
-        shp,
-        dsn = ruta_shp,
-        driver = "ESRI Shapefile",
-        delete_layer = TRUE,
-        quiet = TRUE
-      )
-
-      archivos <- list.files(
-        carpeta_temp,
-        full.names = TRUE
-      )
-
-      if (length(archivos) == 0) {
-        stop("st_write() no generó ningún archivo.")
-      }
-
-      print("ARCHIVOS GENERADOS:")
-      print(archivos)
-
-      # Debe existir al menos el .shp
-      if (!file.exists(ruta_shp)) {
-        stop(
-          paste(
-            "No se encontró el archivo SHP:",
-            ruta_shp
+        
+        req(datos_espaciales())
+        req(input$region_mapa)
+        req(input$comuna_mapa)
+        req(input$huso_utm)
+        req(input$fecha_ini_campana)
+        req(input$fecha_ter_campana)
+        
+        capa <- datos_espaciales()
+        
+        if (!inherits(capa, "sf")) {
+          stop("La capa espacial no es un objeto sf.")
+        }
+        
+        if (nrow(capa) == 0) {
+          stop("La capa espacial está vacía.")
+        }
+        
+        shp <- crear_shp_terreno(
+          capa = capa,
+          region = input$region_mapa,
+          comuna = input$comuna_mapa,
+          fecha_ini = input$fecha_ini_campana,
+          fecha_ter = input$fecha_ter_campana,
+          huso = input$huso_utm
+        )
+        
+        if (!inherits(shp, "sf")) {
+          stop("crear_shp_terreno() no devolvió un objeto sf.")
+        }
+        
+        if (nrow(shp) == 0) {
+          stop("El Shapefile no contiene registros.")
+        }
+        
+        if (is.na(sf::st_crs(shp))) {
+          stop("La capa no tiene sistema de coordenadas definido.")
+        }
+        
+        carpeta_temp <- tempfile("shp_")
+        
+        dir.create(
+          carpeta_temp,
+          recursive = TRUE,
+          showWarnings = FALSE
+        )
+        
+        on.exit(
+          unlink(carpeta_temp, recursive = TRUE),
+          add = TRUE
+        )
+        
+        nombre_shp <- "Estaciones_de_muestreo_de_fauna_terrestre"
+        
+        ruta_shp <- file.path(
+          carpeta_temp,
+          paste0(nombre_shp, ".shp")
+        )
+        
+        sf::st_write(
+          shp,
+          dsn = ruta_shp,
+          driver = "ESRI Shapefile",
+          delete_layer = TRUE,
+          quiet = TRUE
+        )
+        
+        archivos <- list.files(
+          carpeta_temp,
+          full.names = TRUE
+        )
+        
+        if (length(archivos) == 0) {
+          stop("st_write() no generó ningún archivo.")
+        }
+        
+        print("ARCHIVOS GENERADOS:")
+        print(archivos)
+        
+        # Debe existir al menos el .shp
+        if (!file.exists(ruta_shp)) {
+          stop(
+            paste(
+              "No se encontró el archivo SHP:",
+              ruta_shp
+            )
           )
+        }
+        
+        zip_temp <- tempfile(
+          pattern = "fauna_",
+          fileext = ".zip"
         )
-      }
-
-      zip_temp <- tempfile(
-        pattern = "fauna_",
-        fileext = ".zip"
-      )
-
-      zip::zipr(
-        zipfile = zip_temp,
-        files = archivos,
-        include_directories = FALSE
-      )
-
-      if (!file.exists(zip_temp)) {
-
-        stop(
-          paste(
-            "No se pudo crear el archivo ZIP.",
-            "Ruta esperada:",
-            zip_temp
+        
+        zip::zipr(
+          zipfile = zip_temp,
+          files = archivos,
+          include_directories = FALSE
+        )
+        
+        if (!file.exists(zip_temp)) {
+          stop(
+            paste(
+              "No se pudo crear el archivo ZIP.",
+              "Ruta esperada:",
+              zip_temp
+            )
           )
-        )
-      }
-
-      tamano_zip <- file.info(zip_temp)$size
-
-      message("ZIP creado:")
-      message(zip_temp)
-
-      message("Tamaño:")
-      message(tamano_zip)
-
-      if (is.na(tamano_zip) || tamano_zip <= 0) {
-
-        stop(
-          "El archivo ZIP fue creado pero está vacío."
-        )
-      }
-
-      resultado <- file.copy(
-        from = zip_temp,
-        to = file,
-        overwrite = TRUE
-      )
-
-      if (!resultado) {
-
-        stop(
-          paste(
-            "No se pudo copiar el ZIP al archivo de descarga:",
-            file
+        }
+        
+        tamano_zip <- file.info(zip_temp)$size
+        
+        message("ZIP creado:")
+        message(zip_temp)
+        
+        message("Tamaño:")
+        message(tamano_zip)
+        
+        if (is.na(tamano_zip) || tamano_zip <= 0) {
+          stop(
+            "El archivo ZIP fue creado pero está vacío."
           )
+        }
+        
+        resultado <- file.copy(
+          from = zip_temp,
+          to = file,
+          overwrite = TRUE
         )
-      }
-
-      if (!file.exists(file)) {
-
-        stop(
-          "Shiny no recibió correctamente el archivo ZIP."
-        )
-      }
-
-      tamano_final <- file.info(file)$size
-
-      message("DESCARGA SHP")
-      message("SHP: ", ruta_shp)
-      message("ZIP temporal: ", zip_temp)
-      message("ZIP final: ", file)
-      message("Tamaño ZIP: ", file.info(file)$size, " bytes")
-      message("Archivos incluidos:")
-      print(archivos)
-
+        
+        if (!resultado) {
+          stop(
+            paste(
+              "No se pudo copiar el ZIP al archivo de descarga:",
+              file
+            )
+          )
+        }
+        
+        if (!file.exists(file)) {
+          stop(
+            "Shiny no recibió correctamente el archivo ZIP."
+          )
+        }
+        
+        tamano_final <- file.info(file)$size
+        
+        message("DESCARGA SHP")
+        message("SHP: ", ruta_shp)
+        message("ZIP temporal: ", zip_temp)
+        message("ZIP final: ", file)
+        message("Tamaño ZIP: ", file.info(file)$size, " bytes")
+        message("Archivos incluidos:")
+        print(archivos)
       })
     }
   )

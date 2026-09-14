@@ -27,6 +27,15 @@ pal_set2 <- brewer.pal(8, "Set2")
 pal_pastel1 <- brewer.pal(9, "Pastel1")
 pal_pastel2 <- brewer.pal(8, "Pastel2")
 
+# como no dependen de `input`, conviene cargarlas una sola vez en
+# global.R en vez de en cada sesión de server();
+comunas_chile <- readRDS("./datos/comunas.rds")
+
+regiones_chile <- readRDS("./datos/regiones.rds") %>%
+  dplyr::filter(
+    trimws(Region) != "Zona sin demarcar"
+  )
+
 source("R/01_cargar_datos.R")
 source("R/02_utils.R")
 source("R/03_indices_diversidad.R")

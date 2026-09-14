@@ -56,6 +56,7 @@ calcular_dendograma_especies <- function(matriz, metodo_dist = "bray", metodo_cl
 }
 
 # dibuja el dendograma de especies coloreado por corte en k grupos
+# se podría mover a graficos ?
 plot_dendograma_especies <- function(hc, k = 3, metodo_dist = "bray") {
   
   dend_data <- ggdendro::dendro_data(hc)

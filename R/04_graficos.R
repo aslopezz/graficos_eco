@@ -128,15 +128,11 @@ plot_curva_acumulacion <- function(curva) {
     ) +
     
     scale_x_continuous(expand = c(0, 0)) +
-    
     scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
-    
     geom_line(aes(y = observado, colour = "Observado"), linewidth = 1.3) +
-    
     geom_line(aes(y = estimado, colour = "Estimador", ),
               linewidth = 1.2,
               linetype = "dashed") +
-    
     geom_line(aes(y = asintota, colour = "Asíntota"), linewidth = 1.2) +
     
     scale_colour_manual(values = c(
