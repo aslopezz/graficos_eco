@@ -106,24 +106,6 @@ ui <- navbarPage(
       )
     )
   ),
-  tabPanel("Tránsito Aéreo", sidebarLayout(
-    sidebarPanel(
-      h5("Análisis de Vuelo"),
-      hr(),
-      uiOutput("estacion_ui"),
-      actionButton(
-        "run_radar",
-        "Genera gráficos de radar",
-        icon = icon("play"),
-        class = "btn-success w-100"
-      ),
-      #downloadButton("download_all_radars", "Descargar Gráficos")
-    ),
-    mainPanel(
-      plotOutput("graf_radar", height = "500px", width = "500px"),
-      br(),
-    )
-  )),
   tabPanel("Curva de acumulación de especies",
     sidebarLayout(
       sidebarPanel(
