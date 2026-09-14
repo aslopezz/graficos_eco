@@ -15,5 +15,6 @@ app/
     ├── 03_indices_diversidad.R > calcular_indices, tabla_riqueza_abundancia
     ├── 04_graficos.R > graficar, plot_curva_acumulacion
     ├── 05_curvas_acumulacion.R > calcular_curva_acumulacion
-    └── 06_analisis_espacial.R > preparar_datos_espaciales, crear_shp_terreno
+    ├── 06_analisis_espacial.R > preparar_datos_espaciales, crear_shp_terreno
+    └── 07_dendogramas.R > construir_matriz_especies, calcular_dendograma_especies,           plot_dendograma_especies 
 ```
