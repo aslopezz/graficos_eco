@@ -299,12 +299,6 @@ server <- function(input, output, session) {
       )
     }
   )
-  
-  # comunas <- st_read("datos/comunas.gpkg", quiet = TRUE)
-  # regiones <- st_read("datos/regiones.gpkg", quiet = TRUE)
-  
-  # saveRDS(comunas, "datos/comunas.rds")
-  # saveRDS(regiones, "datos/regiones.rds")
 
   # Dendograma
   # Dendograma de especies (Bray-Curtis / Jaccard) 

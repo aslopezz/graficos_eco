@@ -7,3 +7,4 @@ rsconnect/*
 .Data
 .RDataTm*
 .RData
+server_test.R
